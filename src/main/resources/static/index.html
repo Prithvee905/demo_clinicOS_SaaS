@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinicOS - Multi-Tenant Clinic SaaS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Auth Container -->
+    <div id="auth-container" class="auth-wrapper">
+        <div class="auth-card glass">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fa-solid fa-notes-medical accent-color"></i>
+                    <span>Clinic<span class="accent-text">OS</span></span>
+                </div>
+                <p class="subtitle">Multi-Tenant Clinic Management System</p>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <h2>Access Your Clinic</h2>
+                <div class="form-group">
+                    <label for="login-clinic-code">Clinic Code (Slug)</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-house-chimney-medical"></i>
+                        <input type="text" id="login-clinic-code" placeholder="e.g. dentistry-care-96" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="login-username" placeholder="Enter username" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                <p class="auth-switch">Don't have a clinic registered? <a href="#" id="show-register">Register Clinic</a></p>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <h2>Register New Clinic</h2>
+                <div class="form-group">
+                    <label for="reg-clinic-name">Clinic/Niche Name</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-hospital"></i>
+                        <input type="text" id="reg-clinic-name" placeholder="e.g. Dental Care, City Clinic" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-username">Admin Username</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-user-gear"></i>
+                        <input type="text" id="reg-username" placeholder="Create username" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Admin Email</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="reg-email" placeholder="admin@clinic.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-fullname">Admin Full Name</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-signature"></i>
+                        <input type="text" id="reg-fullname" placeholder="Dr. Jane Doe" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Admin Password</label>
+                    <div class="input-icon-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="reg-password" placeholder="Create password" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-accent btn-block">Register Clinic</button>
+                <p class="auth-switch">Already have a clinic? <a href="#" id="show-login">Back to Sign In</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application Dashboard -->
+    <div id="app-container" class="app-layout hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar glass">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-notes-medical accent-color"></i>
+                    <span>Clinic<span class="accent-text">OS</span></span>
+                </div>
+            </div>
+            
+            <div class="tenant-badge">
+                <div class="tenant-label">Active Clinic Code:</div>
+                <div class="tenant-value-wrapper">
+                    <span id="display-tenant-id" class="tenant-value">Code</span>
+                    <button id="btn-copy-tenant" class="btn-copy" title="Copy Clinic Code"><i class="fa-regular fa-copy"></i></button>
+                </div>
+            </div>
+
+            <div class="user-profile">
+                <div class="user-avatar"><i class="fa-solid fa-user-md"></i></div>
+                <div class="user-info">
+                    <div id="display-username" class="user-name">Doctor Name</div>
+                    <div id="display-role" class="user-role-badge">DOCTOR</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item active" data-tab="patients-tab">
+                        <i class="fa-solid fa-hospital-user"></i> Patients
+                    </li>
+                    <li class="nav-item" data-tab="prescriptions-tab">
+                        <i class="fa-solid fa-file-prescription"></i> Prescriptions
+                    </li>
+                    <li class="nav-item" data-tab="billing-tab">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Invoices
+                    </li>
+                    <li class="nav-item" data-tab="settings-tab">
+                        <i class="fa-solid fa-gears"></i> Clinic Staff
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="btn-logout" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View Container -->
+        <main class="main-content">
+            <header class="main-header glass">
+                <h1 id="tab-title">Patients Management</h1>
+                <div class="header-actions">
+                    <span id="current-time" class="time-stamp">00:00 AM</span>
+                </div>
+            </header>
+
+            <div class="scrollable-container">
+                <!-- Patients Tab -->
+                <div id="patients-tab" class="tab-panel active">
+                    <div class="tab-grid">
+                        <div class="panel-card glass">
+                            <h2>Register Patient</h2>
+                            <form id="patient-registration-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Full Name *</label>
+                                        <input type="text" id="pat-name" placeholder="John Doe" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Phone Number *</label>
+                                        <input type="tel" id="pat-phone" placeholder="9876543210" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Email Address</label>
+                                        <input type="email" id="pat-email" placeholder="john@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Date of Birth</label>
+                                        <input type="date" id="pat-dob">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Gender</label>
+                                        <select id="pat-gender">
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Street Address</label>
+                                    <input type="text" id="pat-street" placeholder="Flat, Street name">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>City</label>
+                                        <input type="text" id="pat-city" placeholder="City">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>State</label>
+                                        <input type="text" id="pat-state" placeholder="State">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Postal Code</label>
+                                        <input type="text" id="pat-postal" placeholder="Pin code">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-consent-box">
+                                    <input type="checkbox" id="pat-consent" required>
+                                    <label for="pat-consent">
+                                        I hereby capture the patient's explicit consent to collect, store, and process their health data in compliance with India's DPDP rules. *
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> Save Patient</button>
+                            </form>
+                        </div>
+                        
+                        <div class="panel-card glass flex-column">
+                            <h2>Patients List</h2>
+                            <div class="table-search-bar">
+                                <input type="text" id="patient-search-input" placeholder="Search patients...">
+                            </div>
+                            <div class="list-wrapper">
+                                <div id="patients-list" class="grid-cards-container">
+                                    <!-- Dynamic patients cards go here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prescriptions Tab -->
+                <div id="prescriptions-tab" class="tab-panel">
+                    <div class="tab-grid">
+                        <div class="panel-card glass">
+                            <h2>Write Digital Prescription</h2>
+                            <form id="prescription-form">
+                                <div class="form-group">
+                                    <label>Select Patient *</label>
+                                    <select id="pres-patient-id" required>
+                                        <option value="">Select Patient</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Diagnosis</label>
+                                    <textarea id="pres-diagnosis" rows="2" placeholder="e.g. Acute Pulpitis, Hypertension"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Consultation Notes</label>
+                                    <textarea id="pres-notes" rows="2" placeholder="Clinical notes, complaints, examination findings..."></textarea>
+                                </div>
+
+                                <div class="items-builder-box">
+                                    <h3>Medications</h3>
+                                    <div class="item-builder-inputs">
+                                        <div class="form-group relative">
+                                            <label>Medicine Name *</label>
+                                            <input type="text" id="builder-med-name" placeholder="Search or type medicine...">
+                                            <!-- Autocomplete Results Dropdown -->
+                                            <div id="med-autocomplete-dropdown" class="autocomplete-dropdown hidden"></div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Dosage</label>
+                                            <input type="text" id="builder-med-dosage" placeholder="e.g. 500mg, 1 tab">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Frequency</label>
+                                            <input type="text" id="builder-med-freq" placeholder="e.g. Once daily, 1-0-1">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Duration</label>
+                                            <input type="text" id="builder-med-dur" placeholder="e.g. 5 days, 1 week">
+                                        </div>
+                                    </div>
+                                    <button type="button" id="btn-add-medication" class="btn btn-secondary btn-sm"><i class="fa-solid fa-plus"></i> Add to List</button>
+                                    
+                                    <div class="builder-table-wrapper">
+                                        <table class="builder-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Medicine</th>
+                                                    <th>Dosage</th>
+                                                    <th>Frequency</th>
+                                                    <th>Duration</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="builder-med-list">
+                                                <!-- Added items are populated here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-file-signature"></i> Create & Log Prescription</button>
+                            </form>
+                        </div>
+                        
+                        <div class="panel-card glass flex-column">
+                            <h2>Clinic Prescriptions</h2>
+                            <div class="list-wrapper">
+                                <div id="prescriptions-list" class="grid-cards-container">
+                                    <!-- Dynamic prescriptions go here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing Tab -->
+                <div id="billing-tab" class="tab-panel">
+                    <div class="tab-grid">
+                        <div class="panel-card glass">
+                            <h2>Generate Invoice</h2>
+                            <form id="invoice-form">
+                                <div class="form-group">
+                                    <label>Select Patient *</label>
+                                    <select id="inv-patient-id" required>
+                                        <option value="">Select Patient</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="items-builder-box">
+                                    <h3>Billable Items</h3>
+                                    <div class="item-builder-inputs">
+                                        <div class="form-group">
+                                            <label>Item Name *</label>
+                                            <input type="text" id="builder-inv-name" placeholder="e.g. Consultation, Root Canal">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Quantity *</label>
+                                            <input type="number" id="builder-inv-qty" min="1" value="1">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Unit Price (INR) *</label>
+                                            <input type="number" id="builder-inv-price" step="0.01" min="0" placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <button type="button" id="btn-add-billable" class="btn btn-secondary btn-sm"><i class="fa-solid fa-plus"></i> Add Line</button>
+                                    
+                                    <div class="builder-table-wrapper">
+                                        <table class="builder-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th>Qty</th>
+                                                    <th>Unit Price</th>
+                                                    <th>Total</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="builder-inv-list">
+                                                <!-- Invoice lines added here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Immediate Payment Method</label>
+                                        <select id="inv-payment-method">
+                                            <option value="">None (Mark Unpaid)</option>
+                                            <option value="CASH">CASH</option>
+                                            <option value="UPI">UPI (GPay/PhonePe)</option>
+                                            <option value="CARD">Debit/Credit Card</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-money-check-dollar"></i> Generate Bill & Deliver</button>
+                            </form>
+                        </div>
+                        
+                        <div class="panel-card glass flex-column">
+                            <h2>Invoice Ledger</h2>
+                            <div class="list-wrapper">
+                                <div id="invoices-list" class="grid-cards-container">
+                                    <!-- Dynamic invoices go here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab (Staff Registration) -->
+                <div id="settings-tab" class="tab-panel">
+                    <div class="tab-grid single-col">
+                        <div class="panel-card glass">
+                            <h2>Enroll Clinic Staff & Doctors</h2>
+                            <p class="section-description">Administrators can register new doctors or receptionists under this clinic. They will have access to the dashboard using their custom credentials and this Clinic ID.</p>
+                            <form id="enroll-staff-form" class="max-width-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Username *</label>
+                                        <input type="text" id="staff-username" placeholder="e.g. dr_smith" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Password *</label>
+                                        <input type="password" id="staff-password" placeholder="Create password" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Full Name *</label>
+                                        <input type="text" id="staff-fullname" placeholder="Dr. Sarah Smith" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Email Address *</label>
+                                        <input type="email" id="staff-email" placeholder="smith@clinic.com" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Administrative Role *</label>
+                                        <select id="staff-role" required>
+                                            <option value="DOCTOR">DOCTOR</option>
+                                            <option value="RECEPTIONIST">RECEPTIONIST</option>
+                                            <option value="ADMIN">ADMIN</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group flex-row align-end">
+                                        <div class="form-consent-box no-margin">
+                                            <input type="checkbox" id="staff-is-doctor">
+                                            <label for="staff-is-doctor">Flag as practicing Doctor (grants access to clinical notes)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-accent"><i class="fa-solid fa-user-shield"></i> Enroll Staff</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Details View Popup Modal -->
+    <div id="details-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2 id="modal-title">Details</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamically populated details -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Notifications Banner -->
+    <div id="notification-banner" class="notification-banner hidden">
+        <span id="notification-message">Notification message</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
