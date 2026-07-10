@@ -2,46 +2,64 @@ package com.clinicsaas.auth.dto;
 
 public class AuthResponse {
 
-    private String token;
-    private String username;
-    private String tenantId;
+    private String accessToken;
+    private String refreshToken;
+    private String email;
+    private String name;
+    private String clinicId;
     private String clinicCode;
     private String role;
-    private boolean isDoctor;
 
     public AuthResponse() {}
 
-    public AuthResponse(String token, String username, String tenantId, String clinicCode, String role, boolean isDoctor) {
-        this.token = token;
-        this.username = username;
-        this.tenantId = tenantId;
+    public AuthResponse(String accessToken, String refreshToken, String email, String name, String clinicId, String clinicCode, String role) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.email = email;
+        this.name = name;
+        this.clinicId = clinicId;
         this.clinicCode = clinicCode;
         this.role = role;
-        this.isDoctor = isDoctor;
     }
 
-    public String getToken() {
-        return token;
+    public String getAccessToken() {
+        return accessToken;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
     }
 
-    public String getUsername() {
-        return username;
+    public String getRefreshToken() {
+        return refreshToken;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
-    public String getTenantId() {
-        return tenantId;
+    public String getEmail() {
+        return email;
     }
 
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getClinicId() {
+        return clinicId;
+    }
+
+    public void setClinicId(String clinicId) {
+        this.clinicId = clinicId;
     }
 
     public String getClinicCode() {
@@ -58,13 +76,5 @@ public class AuthResponse {
 
     public void setRole(String role) {
         this.role = role;
-    }
-
-    public boolean isDoctor() {
-        return isDoctor;
-    }
-
-    public void setDoctor(boolean doctor) {
-        isDoctor = doctor;
     }
 }

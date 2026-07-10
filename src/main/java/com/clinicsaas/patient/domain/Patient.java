@@ -3,15 +3,13 @@ package com.clinicsaas.patient.domain;
 import com.clinicsaas.common.tenant.BaseTenantEntity;
 import jakarta.persistence.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(
     name = "patients",
-    indexes = {
-        @Index(name = "idx_patients_tenant_id", columnList = "tenant_id"),
-        @Index(name = "idx_patients_tenant_patient", columnList = "tenant_id, id")
+    uniqueConstraints = {
+        @UniqueConstraint(name = "unique_clinic_patient_phone", columnNames = {"clinic_id", "phone"})
     }
 )
 public class Patient extends BaseTenantEntity {
@@ -20,24 +18,32 @@ public class Patient extends BaseTenantEntity {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
+    @Column(name = "patient_code", nullable = false)
+    private String patientCode;
+
     @Column(nullable = false)
     private String name;
-
-    private String email;
 
     @Column(nullable = false)
     private String phone;
 
+    @Column(nullable = false)
+    private String gender;
+
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
-    private String gender;
+    @Column(length = 255)
+    private String address;
 
-    @Column(name = "consent_given_at")
-    private LocalDateTime consentGivenAt;
+    @Column(name = "blood_group", length = 20)
+    private String bloodGroup;
 
-    @Embedded
-    private PatientAddress address;
+    @Column(nullable = false)
+    private String status; // ACTIVE, INACTIVE
+
+    @Version
+    private Long version;
 
     public UUID getId() {
         return id;
@@ -45,6 +51,14 @@ public class Patient extends BaseTenantEntity {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public String getPatientCode() {
+        return patientCode;
+    }
+
+    public void setPatientCode(String patientCode) {
+        this.patientCode = patientCode;
     }
 
     public String getName() {
@@ -55,28 +69,12 @@ public class Patient extends BaseTenantEntity {
         this.name = name;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
     public String getPhone() {
         return phone;
     }
 
     public void setPhone(String phone) {
         this.phone = phone;
-    }
-
-    public LocalDate getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(LocalDate dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
     }
 
     public String getGender() {
@@ -87,19 +85,43 @@ public class Patient extends BaseTenantEntity {
         this.gender = gender;
     }
 
-    public LocalDateTime getConsentGivenAt() {
-        return consentGivenAt;
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
     }
 
-    public void setConsentGivenAt(LocalDateTime consentGivenAt) {
-        this.consentGivenAt = consentGivenAt;
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
     }
 
-    public PatientAddress getAddress() {
+    public String getAddress() {
         return address;
     }
 
-    public void setAddress(PatientAddress address) {
+    public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getBloodGroup() {
+        return bloodGroup;
+    }
+
+    public void setBloodGroup(String bloodGroup) {
+        this.bloodGroup = bloodGroup;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

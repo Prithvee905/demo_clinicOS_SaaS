@@ -1,24 +1,43 @@
 package com.clinicsaas.prescription.medicine;
 
+import com.clinicsaas.common.tenant.BaseTenantEntity;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "medicines")
-public class Medicine {
+@Table(
+    name = "medicines",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "unique_clinic_medicine_code", columnNames = {"clinic_id", "medicine_code"})
+    }
+)
+public class Medicine extends BaseTenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
+    @Column(name = "medicine_code", nullable = false)
+    private String medicineCode;
+
+    @Column(name = "medicine_name", nullable = false)
+    private String medicineName;
+
+    @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitPrice;
+
+    @Column(name = "gst_percentage", nullable = false, precision = 5, scale = 2)
+    private BigDecimal gstPercentage;
+
+    @Column(name = "unit_type", nullable = false)
+    private String unitType;
+
     @Column(nullable = false)
-    private String name;
+    private String status; // ACTIVE, INACTIVE
 
-    @Column(name = "generic_composition")
-    private String genericComposition;
-
-    @Column(name = "dosage_form")
-    private String dosageForm;
+    @Version
+    private Long version;
 
     public UUID getId() {
         return id;
@@ -28,27 +47,59 @@ public class Medicine {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getMedicineCode() {
+        return medicineCode;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setMedicineCode(String medicineCode) {
+        this.medicineCode = medicineCode;
     }
 
-    public String getGenericComposition() {
-        return genericComposition;
+    public String getMedicineName() {
+        return medicineName;
     }
 
-    public void setGenericComposition(String genericComposition) {
-        this.genericComposition = genericComposition;
+    public void setMedicineName(String medicineName) {
+        this.medicineName = medicineName;
     }
 
-    public String getDosageForm() {
-        return dosageForm;
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
     }
 
-    public void setDosageForm(String dosageForm) {
-        this.dosageForm = dosageForm;
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getGstPercentage() {
+        return gstPercentage;
+    }
+
+    public void setGstPercentage(BigDecimal gstPercentage) {
+        this.gstPercentage = gstPercentage;
+    }
+
+    public String getUnitType() {
+        return unitType;
+    }
+
+    public void setUnitType(String unitType) {
+        this.unitType = unitType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

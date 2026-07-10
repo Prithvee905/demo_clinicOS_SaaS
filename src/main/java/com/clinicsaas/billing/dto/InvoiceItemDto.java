@@ -1,30 +1,23 @@
 package com.clinicsaas.billing.dto;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public class InvoiceItemDto {
 
-    @NotBlank(message = "Item name is required")
     private String itemName;
-
-    @NotNull(message = "Quantity is required")
-    @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
-
-    @NotNull(message = "Unit price is required")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Unit price must be positive")
     private BigDecimal unitPrice;
+    private BigDecimal tax;
+    private BigDecimal totalPrice;
 
     public InvoiceItemDto() {}
 
-    public InvoiceItemDto(String itemName, Integer quantity, BigDecimal unitPrice) {
+    public InvoiceItemDto(String itemName, Integer quantity, BigDecimal unitPrice, BigDecimal tax, BigDecimal totalPrice) {
         this.itemName = itemName;
         this.quantity = quantity;
         this.unitPrice = unitPrice;
+        this.tax = tax;
+        this.totalPrice = totalPrice;
     }
 
     public String getItemName() {
@@ -49,5 +42,21 @@ public class InvoiceItemDto {
 
     public void setUnitPrice(BigDecimal unitPrice) {
         this.unitPrice = unitPrice;
+    }
+
+    public BigDecimal getTax() {
+        return tax;
+    }
+
+    public void setTax(BigDecimal tax) {
+        this.tax = tax;
+    }
+
+    public BigDecimal getTotalPrice() {
+        return totalPrice;
+    }
+
+    public void setTotalPrice(BigDecimal totalPrice) {
+        this.totalPrice = totalPrice;
     }
 }

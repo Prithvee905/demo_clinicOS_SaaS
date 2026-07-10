@@ -1,82 +1,82 @@
 package com.clinicsaas.common.audit;
 
-import com.clinicsaas.patient.dto.PatientResponseDto;
-import com.clinicsaas.prescription.dto.PrescriptionResponseDto;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.UUID;
 
 @Aspect
 @Component
 public class PatientAuditAspect {
 
+    private static final Logger log = LoggerFactory.getLogger(PatientAuditAspect.class);
+
     @Autowired
-    private AuditLogRepository auditLogRepository;
+    private AuditLogService auditLogService;
 
-    @Pointcut("execution(* com.clinicsaas.patient.service.PatientService.registerPatient(..)) || " +
-              "execution(* com.clinicsaas.patient.service.PatientService.getPatientById(..)) || " +
-              "execution(* com.clinicsaas.patient.service.PatientService.getAllPatients(..))")
-    public void patientServiceMethods() {}
+    // Pointcut targeting all methods inside patient and prescription services
+    @Pointcut("execution(* com.clinicsaas.patient.service.PatientService.*(..)) || " +
+              "execution(* com.clinicsaas.prescription.service.PrescriptionService.*(..))")
+    public void serviceLayerMethods() {}
 
-    @Pointcut("execution(* com.clinicsaas.prescription.service.PrescriptionService.createPrescription(..)) || " +
-              "execution(* com.clinicsaas.prescription.service.PrescriptionService.getPrescriptionById(..)) || " +
-              "execution(* com.clinicsaas.prescription.service.PrescriptionService.getPrescriptionsByPatientId(..))")
-    public void prescriptionServiceMethods() {}
-
-    @AfterReturning(pointcut = "patientServiceMethods() || prescriptionServiceMethods()", returning = "result")
-    public void auditPatientDataAccess(JoinPoint joinPoint, Object result) {
+    @AfterReturning(pointcut = "serviceLayerMethods()", returning = "result")
+    public void auditServiceCall(JoinPoint joinPoint, Object result) {
         String methodName = joinPoint.getSignature().getName();
-        String username = getUsername();
-        if (username == null || "anonymousUser".equals(username)) {
-            return; // Skip auditing if no authenticated user
+        
+        try {
+            if ("createPatient".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PATIENT_CREATED", "PATIENT", id, "Registered new patient record.");
+            } else if ("updatePatient".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PATIENT_UPDATED", "PATIENT", id, "Updated patient demographic records.");
+            } else if ("deletePatient".equals(methodName)) {
+                UUID id = getArgumentId(joinPoint.getArgs());
+                auditLogService.logAction("PATIENT_DELETED", "PATIENT", id, "Soft-deleted patient record.");
+            } else if ("getPatientById".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PATIENT_RECORD_VIEWED", "PATIENT", id, "Viewed patient medical details.");
+            } else if ("getAllPatients".equals(methodName) || "searchPatients".equals(methodName)) {
+                auditLogService.logAction("PATIENT_LIST_VIEWED", "PATIENT", null, "Viewed/searched patient registry list.");
+            } else if ("createPrescription".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PRESCRIPTION_CREATED", "PRESCRIPTION", id, "Created new prescription draft.");
+            } else if ("updatePrescription".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PRESCRIPTION_UPDATED", "PRESCRIPTION", id, "Modified prescription items/notes.");
+            } else if ("completePrescription".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PRESCRIPTION_COMPLETED", "PRESCRIPTION", id, "Completed and locked prescription details.");
+            } else if ("getPrescriptionById".equals(methodName)) {
+                UUID id = getEntityId(result);
+                auditLogService.logAction("PRESCRIPTION_VIEWED", "PRESCRIPTION", id, "Viewed patient clinical prescription.");
+            }
+        } catch (Exception e) {
+            log.error("Failed to automatically audit method: " + methodName, e);
         }
+    }
 
-        if (result instanceof PatientResponseDto patientDto) {
-            logAudit(username, getActionName(methodName), patientDto.getId(), "Accessed patient details for: " + patientDto.getName());
-        } else if (result instanceof PrescriptionResponseDto prescriptionDto) {
-            logAudit(username, getActionName(methodName), prescriptionDto.getPatientId(), "Accessed prescription with ID: " + prescriptionDto.getId());
-        } else if (result instanceof Collection<?> list) {
-            for (Object item : list) {
-                if (item instanceof PatientResponseDto patientDto) {
-                    logAudit(username, getActionName(methodName), patientDto.getId(), "Bulk list accessed patient: " + patientDto.getName());
-                } else if (item instanceof PrescriptionResponseDto prescriptionDto) {
-                    logAudit(username, getActionName(methodName), prescriptionDto.getPatientId(), "Bulk list accessed prescription: " + prescriptionDto.getId());
-                }
+    private UUID getEntityId(Object result) {
+        if (result == null) return null;
+        try {
+            return (UUID) result.getClass().getMethod("getId").invoke(result);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private UUID getArgumentId(Object[] args) {
+        if (args == null || args.length == 0) return null;
+        for (Object arg : args) {
+            if (arg instanceof UUID) {
+                return (UUID) arg;
             }
         }
-    }
-
-    private void logAudit(String username, String action, UUID patientId, String details) {
-        AuditLog auditLog = new AuditLog();
-        auditLog.setUsername(username);
-        auditLog.setAction(action);
-        auditLog.setPatientId(patientId);
-        auditLog.setDetails(details);
-        auditLog.setTimestamp(LocalDateTime.now());
-        auditLogRepository.save(auditLog);
-    }
-
-    private String getUsername() {
-        if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            return SecurityContextHolder.getContext().getAuthentication().getName();
-        }
         return null;
-    }
-
-    private String getActionName(String methodName) {
-        if (methodName.startsWith("register") || methodName.startsWith("create")) {
-            return "WRITE_PATIENT_DATA";
-        }
-        if (methodName.startsWith("get") || methodName.startsWith("find")) {
-            return "READ_PATIENT_DATA";
-        }
-        return "ACCESS_PATIENT_DATA";
     }
 }

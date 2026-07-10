@@ -23,10 +23,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     open-in-view: false
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -58,6 +55,14 @@ resilience4j:
           - org.springframework.web.client.RestClientResponseException
           - org.springframework.web.client.ResourceAccessException
           - java.io.IOException
+      s3Upload:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - software.amazon.awssdk.core.exception.SdkException
 
 logging:
   level:

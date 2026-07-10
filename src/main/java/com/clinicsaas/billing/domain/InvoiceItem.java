@@ -1,6 +1,5 @@
 package com.clinicsaas.billing.domain;
 
-import com.clinicsaas.common.tenant.BaseTenantEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -8,7 +7,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "invoice_items")
-public class InvoiceItem extends BaseTenantEntity {
+public class InvoiceItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -29,7 +28,10 @@ public class InvoiceItem extends BaseTenantEntity {
     private BigDecimal unitPrice;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount;
+    private BigDecimal tax;
+
+    @Column(name = "total_price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalPrice;
 
     public UUID getId() {
         return id;
@@ -71,11 +73,19 @@ public class InvoiceItem extends BaseTenantEntity {
         this.unitPrice = unitPrice;
     }
 
-    public BigDecimal getAmount() {
-        return amount;
+    public BigDecimal getTax() {
+        return tax;
     }
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
+    public void setTax(BigDecimal tax) {
+        this.tax = tax;
+    }
+
+    public BigDecimal getTotalPrice() {
+        return totalPrice;
+    }
+
+    public void setTotalPrice(BigDecimal totalPrice) {
+        this.totalPrice = totalPrice;
     }
 }

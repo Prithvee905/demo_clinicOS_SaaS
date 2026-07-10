@@ -8,40 +8,29 @@ import jakarta.validation.constraints.Size;
 
 public class CreateUserRequest {
 
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
-    private String username;
-
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters long")
-    private String password;
+    @NotBlank(message = "Name is required")
+    private String name;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
     private String email;
 
-    @NotBlank(message = "Full name is required")
-    private String fullName;
+    @NotBlank(message = "Phone is required")
+    private String phone;
+
+    @NotBlank(message = "Password is required")
+    @Size(min = 6, message = "Password must be at least 6 characters long")
+    private String password;
 
     @NotNull(message = "Role is required")
     private Role role;
 
-    private boolean isDoctor = false;
-
-    public String getUsername() {
-        return username;
+    public String getName() {
+        return name;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getEmail() {
@@ -52,12 +41,20 @@ public class CreateUserRequest {
         this.email = email;
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getPhone() {
+        return phone;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public Role getRole() {
@@ -66,13 +63,5 @@ public class CreateUserRequest {
 
     public void setRole(Role role) {
         this.role = role;
-    }
-
-    public boolean isDoctor() {
-        return isDoctor;
-    }
-
-    public void setDoctor(boolean doctor) {
-        isDoctor = doctor;
     }
 }

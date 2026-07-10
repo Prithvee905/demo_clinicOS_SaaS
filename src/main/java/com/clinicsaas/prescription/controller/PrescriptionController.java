@@ -2,8 +2,6 @@ package com.clinicsaas.prescription.controller;
 
 import com.clinicsaas.prescription.dto.PrescriptionRequestDto;
 import com.clinicsaas.prescription.dto.PrescriptionResponseDto;
-import com.clinicsaas.prescription.medicine.Medicine;
-import com.clinicsaas.prescription.medicine.MedicineCatalogService;
 import com.clinicsaas.prescription.service.PrescriptionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +19,25 @@ public class PrescriptionController {
     @Autowired
     private PrescriptionService prescriptionService;
 
-    @Autowired
-    private MedicineCatalogService medicineCatalogService;
-
     @PostMapping
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<PrescriptionResponseDto> createPrescription(@Valid @RequestBody PrescriptionRequestDto dto) {
         PrescriptionResponseDto response = prescriptionService.createPrescription(dto);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<PrescriptionResponseDto> updatePrescription(@PathVariable UUID id, @Valid @RequestBody PrescriptionRequestDto dto) {
+        PrescriptionResponseDto response = prescriptionService.updatePrescription(id, dto);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/complete")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<PrescriptionResponseDto> completePrescription(@PathVariable UUID id) {
+        PrescriptionResponseDto response = prescriptionService.completePrescription(id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -42,9 +52,9 @@ public class PrescriptionController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/medicines/search")
-    public ResponseEntity<List<Medicine>> searchMedicines(@RequestParam("query") String query) {
-        List<Medicine> response = medicineCatalogService.search(query);
+    @GetMapping
+    public ResponseEntity<List<PrescriptionResponseDto>> getAllPrescriptions() {
+        List<PrescriptionResponseDto> response = prescriptionService.getAllPrescriptions();
         return ResponseEntity.ok(response);
     }
 }

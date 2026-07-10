@@ -8,13 +8,20 @@ import java.util.UUID;
 public class InvoiceResponseDto {
 
     private UUID id;
-    private UUID patientId;
+    private UUID clinicId;
     private String invoiceNumber;
-    private BigDecimal totalAmount;
-    private String status;
-    private String deliveryStatus;
+    private UUID patientId;
+    private String patientName;
+    private String patientPhone;
+    private UUID prescriptionId;
+    private BigDecimal subtotal;
+    private BigDecimal taxAmount;
+    private BigDecimal grandTotal;
     private String pdfUrl;
+    private String status; // GENERATED, SENT, CANCELLED
+    private Long version;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<InvoiceItemDto> items;
 
     public UUID getId() {
@@ -25,12 +32,12 @@ public class InvoiceResponseDto {
         this.id = id;
     }
 
-    public UUID getPatientId() {
-        return patientId;
+    public UUID getClinicId() {
+        return clinicId;
     }
 
-    public void setPatientId(UUID patientId) {
-        this.patientId = patientId;
+    public void setClinicId(UUID clinicId) {
+        this.clinicId = clinicId;
     }
 
     public String getInvoiceNumber() {
@@ -41,28 +48,60 @@ public class InvoiceResponseDto {
         this.invoiceNumber = invoiceNumber;
     }
 
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
+    public UUID getPatientId() {
+        return patientId;
     }
 
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
+    public void setPatientId(UUID patientId) {
+        this.patientId = patientId;
     }
 
-    public String getStatus() {
-        return status;
+    public String getPatientName() {
+        return patientName;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
-    public String getDeliveryStatus() {
-        return deliveryStatus;
+    public String getPatientPhone() {
+        return patientPhone;
     }
 
-    public void setDeliveryStatus(String deliveryStatus) {
-        this.deliveryStatus = deliveryStatus;
+    public void setPatientPhone(String patientPhone) {
+        this.patientPhone = patientPhone;
+    }
+
+    public UUID getPrescriptionId() {
+        return prescriptionId;
+    }
+
+    public void setPrescriptionId(UUID prescriptionId) {
+        this.prescriptionId = prescriptionId;
+    }
+
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public BigDecimal getTaxAmount() {
+        return taxAmount;
+    }
+
+    public void setTaxAmount(BigDecimal taxAmount) {
+        this.taxAmount = taxAmount;
+    }
+
+    public BigDecimal getGrandTotal() {
+        return grandTotal;
+    }
+
+    public void setGrandTotal(BigDecimal grandTotal) {
+        this.grandTotal = grandTotal;
     }
 
     public String getPdfUrl() {
@@ -73,12 +112,36 @@ public class InvoiceResponseDto {
         this.pdfUrl = pdfUrl;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public List<InvoiceItemDto> getItems() {

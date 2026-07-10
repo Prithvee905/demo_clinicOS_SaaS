@@ -37,7 +37,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
         
-        // Fallback to Authorization Header (useful for integration tests)
+        // Fallback to Authorization Header
         if (jwt == null) {
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -47,16 +47,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         
         String username = null;
         String tenantId = null;
+        String userId = null;
         String role = null;
         Boolean isDoctor = false;
 
         if (jwt != null) {
             try {
                 if (jwtService.isTokenValid(jwt)) {
-                    username = jwtService.extractUsername(jwt);
-                    tenantId = jwtService.extractTenantId(jwt);
-                    role = jwtService.extractRole(jwt);
-                    isDoctor = jwtService.extractIsDoctor(jwt);
+                    String tokenType = jwtService.extractTokenType(jwt);
+                    if ("ACCESS".equals(tokenType)) {
+                        username = jwtService.extractUsername(jwt);
+                        tenantId = jwtService.extractTenantId(jwt);
+                        userId = jwtService.extractUserId(jwt);
+                        role = jwtService.extractRole(jwt);
+                        isDoctor = jwtService.extractIsDoctor(jwt);
+                    }
                 }
             } catch (Exception e) {
                 logger.warn("JWT token parsing failed: " + e.getMessage());
@@ -65,8 +70,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         try {
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Setup TenantContext first so that it is available for any queries triggered during security validation
+                // Setup TenantContext first
                 TenantContext.setTenantId(tenantId);
+                TenantContext.setUserId(userId);
                 TenantContext.setCurrentRole(role);
                 TenantContext.setIsDoctor(isDoctor != null && isDoctor);
 

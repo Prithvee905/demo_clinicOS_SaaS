@@ -1,13 +1,14 @@
 package com.clinicsaas.prescription.domain;
 
-import com.clinicsaas.common.tenant.BaseTenantEntity;
+import com.clinicsaas.prescription.medicine.Medicine;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
 @Table(name = "prescription_items")
-public class PrescriptionItem extends BaseTenantEntity {
+public class PrescriptionItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -18,14 +19,30 @@ public class PrescriptionItem extends BaseTenantEntity {
     @JsonIgnore
     private Prescription prescription;
 
-    @Column(name = "medicine_name", nullable = false)
-    private String medicineName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "medicine_id", nullable = false)
+    private Medicine medicine;
 
+    @Column(nullable = false)
+    private Integer quantity;
+
+    @Column(nullable = false)
     private String dosage;
 
+    @Column(nullable = false)
     private String frequency;
 
+    @Column(nullable = false)
     private String duration;
+
+    @Column(length = 255)
+    private String remarks;
+
+    @Column(name = "unit_price_snapshot", precision = 12, scale = 2)
+    private BigDecimal unitPriceSnapshot;
+
+    @Column(name = "gst_percentage_snapshot", precision = 5, scale = 2)
+    private BigDecimal gstPercentageSnapshot;
 
     public UUID getId() {
         return id;
@@ -43,12 +60,20 @@ public class PrescriptionItem extends BaseTenantEntity {
         this.prescription = prescription;
     }
 
-    public String getMedicineName() {
-        return medicineName;
+    public Medicine getMedicine() {
+        return medicine;
     }
 
-    public void setMedicineName(String medicineName) {
-        this.medicineName = medicineName;
+    public void setMedicine(Medicine medicine) {
+        this.medicine = medicine;
+    }
+
+    public Integer getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity;
     }
 
     public String getDosage() {
@@ -73,5 +98,29 @@ public class PrescriptionItem extends BaseTenantEntity {
 
     public void setDuration(String duration) {
         this.duration = duration;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
+    }
+
+    public BigDecimal getUnitPriceSnapshot() {
+        return unitPriceSnapshot;
+    }
+
+    public void setUnitPriceSnapshot(BigDecimal unitPriceSnapshot) {
+        this.unitPriceSnapshot = unitPriceSnapshot;
+    }
+
+    public BigDecimal getGstPercentageSnapshot() {
+        return gstPercentageSnapshot;
+    }
+
+    public void setGstPercentageSnapshot(BigDecimal gstPercentageSnapshot) {
+        this.gstPercentageSnapshot = gstPercentageSnapshot;
     }
 }

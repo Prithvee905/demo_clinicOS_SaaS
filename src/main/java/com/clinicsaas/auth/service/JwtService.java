@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -23,14 +24,28 @@ public class JwtService {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, String tenantId, String role, boolean isDoctor) {
+    public String generateAccessToken(String email, UUID userId, String clinicId, String role, boolean isDoctor) {
         return Jwts.builder()
-                .subject(username)
-                .claim("tenantId", tenantId)
+                .subject(email)
+                .claim("userId", userId.toString())
+                .claim("tenantId", clinicId)
                 .claim("role", role)
                 .claim("isDoctor", isDoctor)
+                .claim("tokenType", "ACCESS")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String generateRefreshToken(String email, UUID userId, String clinicId) {
+        return Jwts.builder()
+                .subject(email)
+                .claim("userId", userId.toString())
+                .claim("tenantId", clinicId)
+                .claim("tokenType", "REFRESH")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000)) // 7 days expiration
                 .signWith(getSigningKey())
                 .compact();
     }
@@ -55,12 +70,20 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("tenantId", String.class));
     }
 
+    public String extractUserId(String token) {
+        return extractClaim(token, claims -> claims.get("userId", String.class));
+    }
+
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
     public Boolean extractIsDoctor(String token) {
         return extractClaim(token, claims -> claims.get("isDoctor", Boolean.class));
+    }
+
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("tokenType", String.class));
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

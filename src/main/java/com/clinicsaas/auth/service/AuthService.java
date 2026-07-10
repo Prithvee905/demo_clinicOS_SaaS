@@ -1,21 +1,25 @@
 package com.clinicsaas.auth.service;
 
+import com.clinicsaas.auth.domain.Clinic;
 import com.clinicsaas.auth.domain.Role;
 import com.clinicsaas.auth.domain.User;
-import com.clinicsaas.auth.domain.UserTenantRole;
 import com.clinicsaas.auth.dto.AuthResponse;
 import com.clinicsaas.auth.dto.CreateUserRequest;
 import com.clinicsaas.auth.dto.LoginRequest;
 import com.clinicsaas.auth.dto.RegisterRequest;
+import com.clinicsaas.auth.repository.ClinicRepository;
 import com.clinicsaas.auth.repository.UserRepository;
-import com.clinicsaas.auth.repository.UserTenantRoleRepository;
+import com.clinicsaas.common.audit.AuditLogService;
 import com.clinicsaas.common.exception.CustomException;
 import com.clinicsaas.common.tenant.TenantContext;
+import com.clinicsaas.doctor.domain.Doctor;
+import com.clinicsaas.doctor.repository.DoctorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,10 +30,10 @@ public class AuthService {
     private UserRepository userRepository;
 
     @Autowired
-    private UserTenantRoleRepository userTenantRoleRepository;
+    private ClinicRepository clinicRepository;
 
     @Autowired
-    private com.clinicsaas.auth.repository.ClinicRepository clinicRepository;
+    private DoctorRepository doctorRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -37,70 +41,150 @@ public class AuthService {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private AuditLogService auditLogService;
+
     @Transactional
     public AuthResponse registerTenant(RegisterRequest request) {
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new CustomException("Username already exists", HttpStatus.BAD_REQUEST);
+        // Validate globally unique email
+        if (userRepository.existsByEmail(request.getAdminEmail())) {
+            throw new CustomException("Email already registered", HttpStatus.BAD_REQUEST, "EMAIL_ALREADY_EXISTS");
         }
 
-        UUID tenantId = UUID.randomUUID();
-        String clinicCode = generateClinicCode(request.getClinicName());
+        String clinicCode = request.getClinicCode();
+        if (clinicCode == null || clinicCode.isBlank()) {
+            clinicCode = generateClinicCode(request.getClinicName());
+        } else {
+            clinicCode = clinicCode.toLowerCase().replaceAll("[^a-z0-9]+", "-");
+            if (clinicRepository.findByClinicCode(clinicCode).isPresent()) {
+                throw new CustomException("Clinic code already exists", HttpStatus.BAD_REQUEST, "CLINIC_CODE_ALREADY_EXISTS");
+            }
+        }
 
-        com.clinicsaas.auth.domain.Clinic clinic = new com.clinicsaas.auth.domain.Clinic();
-        clinic.setId(tenantId);
+        UUID clinicId = UUID.randomUUID();
+
+        // 1. Save Clinic
+        Clinic clinic = new Clinic();
+        clinic.setId(clinicId);
+        clinic.setClinicCode(clinicCode);
         clinic.setName(request.getClinicName());
-        clinic.setCode(clinicCode);
-        clinicRepository.save(clinic);
+        clinic.setOwnerName(request.getOwnerName());
+        clinic.setPhone(request.getClinicPhone());
+        clinic.setEmail(request.getClinicEmail());
+        clinic.setAddress(request.getClinicAddress());
+        clinic.setStatus("ACTIVE");
+        clinic = clinicRepository.save(clinic);
 
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
-        user.setFullName(request.getFullName());
-        user = userRepository.save(user);
+        // 2. Save Admin User
+        User admin = new User();
+        admin.setClinicId(clinicId);
+        admin.setName(request.getAdminName());
+        admin.setEmail(request.getAdminEmail());
+        admin.setPhone(request.getAdminPhone());
+        admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        admin.setRole(Role.ADMIN);
+        admin.setStatus("ACTIVE");
+        admin = userRepository.save(admin);
 
-        // Set TenantContext temporarily for this transaction write
-        TenantContext.setTenantId(tenantId.toString());
+        // 3. Generate tokens
+        String accessToken = jwtService.generateAccessToken(admin.getEmail(), admin.getId(), clinicId.toString(), Role.ADMIN.name(), false);
+        String refreshToken = jwtService.generateRefreshToken(admin.getEmail(), admin.getId(), clinicId.toString());
 
-        UserTenantRole mapping = new UserTenantRole();
-        mapping.setUser(user);
-        mapping.setRole(Role.ADMIN);
-        mapping.setDoctor(false);
-        userTenantRoleRepository.save(mapping);
+        // 4. Audit Log
+        auditLogService.logAction(admin.getId(), clinicId, "CLINIC_REGISTERED", "CLINIC", clinicId, 
+                "Registered clinic " + request.getClinicName() + " with admin email " + request.getAdminEmail());
 
-        String token = jwtService.generateToken(user.getUsername(), tenantId.toString(), Role.ADMIN.name(), false);
-        return new AuthResponse(token, user.getUsername(), tenantId.toString(), clinicCode, Role.ADMIN.name(), false);
+        return new AuthResponse(accessToken, refreshToken, admin.getEmail(), admin.getName(), clinicId.toString(), clinic.getClinicCode(), Role.ADMIN.name());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new CustomException("Invalid username or password", HttpStatus.UNAUTHORIZED));
+        // Resolve clinic code
+        Clinic clinic = clinicRepository.findByClinicCode(request.getClinicCode())
+                .orElseThrow(() -> new CustomException("Clinic not found with code: " + request.getClinicCode(), HttpStatus.NOT_FOUND, "CLINIC_NOT_FOUND"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new CustomException("Invalid username or password", HttpStatus.UNAUTHORIZED);
+        // Find user in this clinic
+        User user = userRepository.findByEmailAndClinicIdAndStatus(request.getEmail(), clinic.getId(), "ACTIVE")
+                .orElseThrow(() -> new CustomException("Invalid email or password", HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS"));
+
+        // Match password
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new CustomException("Invalid email or password", HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
         }
 
-        com.clinicsaas.auth.domain.Clinic clinic = clinicRepository.findByCode(request.getClinicCode())
-                .orElseThrow(() -> new CustomException("Clinic not found with code: " + request.getClinicCode(), HttpStatus.NOT_FOUND));
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
 
-        String tenantId = clinic.getId().toString();
+        // Check if user is doctor
+        boolean isDoctor = user.getRole() == Role.DOCTOR;
+        if (isDoctor) {
+            // Verify doctor profile exists
+            Optional<Doctor> docProfile = doctorRepository.findByUserIdAndClinicId(user.getId(), clinic.getId());
+            if (docProfile.isEmpty()) {
+                throw new CustomException("Doctor profile configuration missing", HttpStatus.FORBIDDEN, "DOCTOR_PROFILE_MISSING");
+            }
+        }
 
-        // Set TenantContext to validate user's tenant role mapping
-        TenantContext.setTenantId(tenantId);
+        String accessToken = jwtService.generateAccessToken(user.getEmail(), user.getId(), clinic.getId().toString(), user.getRole().name(), isDoctor);
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId(), clinic.getId().toString());
 
-        UserTenantRole roleMapping = userTenantRoleRepository.findByUserIdAndTenantId(user.getId(), UUID.fromString(tenantId))
-                .orElseThrow(() -> new CustomException("User is not authorized for this clinic", HttpStatus.FORBIDDEN));
+        // Audit Log
+        auditLogService.logAction(user.getId(), clinic.getId(), "USER_LOGIN", "USER", user.getId(), "User logged in successfully");
 
-        boolean isDoctor = roleMapping.getRole() == Role.DOCTOR || roleMapping.isDoctor();
-        String token = jwtService.generateToken(
-                user.getUsername(),
-                tenantId,
-                roleMapping.getRole().name(),
-                isDoctor
-        );
+        return new AuthResponse(accessToken, refreshToken, user.getEmail(), user.getName(), clinic.getId().toString(), clinic.getClinicCode(), user.getRole().name());
+    }
 
-        return new AuthResponse(token, user.getUsername(), tenantId, clinic.getCode(), roleMapping.getRole().name(), isDoctor);
+    @Transactional
+    public AuthResponse refreshAccessToken(String refreshTokenString) {
+        if (!jwtService.isTokenValid(refreshTokenString)) {
+            throw new CustomException("Invalid refresh token", HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
+        }
+
+        String tokenType = jwtService.extractTokenType(refreshTokenString);
+        if (!"REFRESH".equals(tokenType)) {
+            throw new CustomException("Token is not a refresh token", HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN");
+        }
+
+        String email = jwtService.extractUsername(refreshTokenString);
+        String clinicIdStr = jwtService.extractTenantId(refreshTokenString);
+        String userIdStr = jwtService.extractUserId(refreshTokenString);
+
+        User user = userRepository.findByEmailAndClinicIdAndStatus(email, UUID.fromString(clinicIdStr), "ACTIVE")
+                .orElseThrow(() -> new CustomException("User not found or inactive", HttpStatus.UNAUTHORIZED, "USER_NOT_FOUND"));
+
+        boolean isDoctor = user.getRole() == Role.DOCTOR;
+        String newAccessToken = jwtService.generateAccessToken(user.getEmail(), user.getId(), clinicIdStr, user.getRole().name(), isDoctor);
+        String newRefreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId(), clinicIdStr);
+
+        return new AuthResponse(newAccessToken, newRefreshToken, user.getEmail(), user.getName(), clinicIdStr, "", user.getRole().name());
+    }
+
+    @Transactional
+    public void createUser(CreateUserRequest request) {
+        String currentTenant = TenantContext.getTenantId();
+        if (currentTenant == null) {
+            throw new CustomException("No active clinic context found", HttpStatus.BAD_REQUEST, "NO_CLINIC_CONTEXT");
+        }
+
+        UUID clinicId = UUID.fromString(currentTenant);
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException("Email already registered", HttpStatus.BAD_REQUEST, "EMAIL_ALREADY_EXISTS");
+        }
+
+        User user = new User();
+        user.setClinicId(clinicId);
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole());
+        user.setStatus("ACTIVE");
+        user = userRepository.save(user);
+
+        // Audit Log
+        auditLogService.logAction(user.getId(), clinicId, "USER_CREATED", "USER", user.getId(), 
+                "Created user: " + user.getName() + " with role: " + user.getRole());
     }
 
     private String generateClinicCode(String clinicName) {
@@ -112,40 +196,10 @@ public class AuthService {
         }
         String code = base;
         int count = 1;
-        while (clinicRepository.findByCode(code).isPresent()) {
+        while (clinicRepository.findByClinicCode(code).isPresent()) {
             code = base + "-" + (int)(Math.random() * 1000) + count;
             count++;
         }
         return code;
-    }
-
-    @Transactional
-    public void createUser(CreateUserRequest request) {
-        String currentTenant = TenantContext.getTenantId();
-        if (currentTenant == null) {
-            throw new CustomException("No active tenant context found", HttpStatus.BAD_REQUEST);
-        }
-
-        User user = userRepository.findByUsername(request.getUsername()).orElse(null);
-        if (user == null) {
-            user = new User();
-            user.setUsername(request.getUsername());
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-            user.setEmail(request.getEmail());
-            user.setFullName(request.getFullName());
-            user = userRepository.save(user);
-        }
-
-        // Check if role mapping already exists in this tenant
-        Optional<UserTenantRole> existingRole = userTenantRoleRepository.findByUserIdAndTenantId(user.getId(), UUID.fromString(currentTenant));
-        if (existingRole.isPresent()) {
-            throw new CustomException("User already belongs to this clinic", HttpStatus.BAD_REQUEST);
-        }
-
-        UserTenantRole mapping = new UserTenantRole();
-        mapping.setUser(user);
-        mapping.setRole(request.getRole());
-        mapping.setDoctor(request.isDoctor() || request.getRole() == Role.DOCTOR);
-        userTenantRoleRepository.save(mapping);
     }
 }

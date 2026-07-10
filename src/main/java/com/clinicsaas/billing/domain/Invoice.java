@@ -1,54 +1,55 @@
 package com.clinicsaas.billing.domain;
 
 import com.clinicsaas.common.tenant.BaseTenantEntity;
+import com.clinicsaas.file.domain.FileRecord;
+import com.clinicsaas.patient.domain.Patient;
+import com.clinicsaas.prescription.domain.Prescription;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(
-    name = "invoices",
-    indexes = {
-        @Index(name = "idx_invoices_tenant_id", columnList = "tenant_id"),
-        @Index(name = "idx_invoices_tenant_patient", columnList = "tenant_id, patient_id"),
-        @Index(name = "idx_invoices_tenant_created", columnList = "tenant_id, created_at")
-    }
-)
+@Table(name = "invoices")
 public class Invoice extends BaseTenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "patient_id", nullable = false)
-    private UUID patientId;
-
     @Column(name = "invoice_number", nullable = false, unique = true)
     private String invoiceNumber;
 
-    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalAmount;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false)
+    private Patient patient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "prescription_id", nullable = false)
+    private Prescription prescription;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(name = "tax_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(name = "grand_total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal grandTotal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "file_id")
+    private FileRecord file;
 
     @Column(nullable = false)
-    private String status; // e.g., UNPAID, PAID, CANCELLED
+    private String status; // GENERATED, SENT, CANCELLED
 
-    @Column(name = "delivery_status", nullable = false)
-    private String deliveryStatus; // e.g., PENDING, DELIVERED, FAILED
-
-    @Column(name = "pdf_url", length = 2048)
-    private String pdfUrl;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    @Version
+    private Long version;
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InvoiceItem> items = new ArrayList<>();
-
-    @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Payment> payments = new ArrayList<>();
 
     public UUID getId() {
         return id;
@@ -56,14 +57,6 @@ public class Invoice extends BaseTenantEntity {
 
     public void setId(UUID id) {
         this.id = id;
-    }
-
-    public UUID getPatientId() {
-        return patientId;
-    }
-
-    public void setPatientId(UUID patientId) {
-        this.patientId = patientId;
     }
 
     public String getInvoiceNumber() {
@@ -74,12 +67,52 @@ public class Invoice extends BaseTenantEntity {
         this.invoiceNumber = invoiceNumber;
     }
 
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
+    public Patient getPatient() {
+        return patient;
     }
 
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
+    public void setPatient(Patient patient) {
+        this.patient = patient;
+    }
+
+    public Prescription getPrescription() {
+        return prescription;
+    }
+
+    public void setPrescription(Prescription prescription) {
+        this.prescription = prescription;
+    }
+
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public BigDecimal getTaxAmount() {
+        return taxAmount;
+    }
+
+    public void setTaxAmount(BigDecimal taxAmount) {
+        this.taxAmount = taxAmount;
+    }
+
+    public BigDecimal getGrandTotal() {
+        return grandTotal;
+    }
+
+    public void setGrandTotal(BigDecimal grandTotal) {
+        this.grandTotal = grandTotal;
+    }
+
+    public FileRecord getFile() {
+        return file;
+    }
+
+    public void setFile(FileRecord file) {
+        this.file = file;
     }
 
     public String getStatus() {
@@ -90,28 +123,12 @@ public class Invoice extends BaseTenantEntity {
         this.status = status;
     }
 
-    public String getDeliveryStatus() {
-        return deliveryStatus;
+    public Long getVersion() {
+        return version;
     }
 
-    public void setDeliveryStatus(String deliveryStatus) {
-        this.deliveryStatus = deliveryStatus;
-    }
-
-    public String getPdfUrl() {
-        return pdfUrl;
-    }
-
-    public void setPdfUrl(String pdfUrl) {
-        this.pdfUrl = pdfUrl;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     public List<InvoiceItem> getItems() {
@@ -125,18 +142,5 @@ public class Invoice extends BaseTenantEntity {
     public void addItem(InvoiceItem item) {
         items.add(item);
         item.setInvoice(this);
-    }
-
-    public List<Payment> getPayments() {
-        return payments;
-    }
-
-    public void setPayments(List<Payment> payments) {
-        this.payments = payments;
-    }
-
-    public void addPayment(Payment payment) {
-        payments.add(payment);
-        payment.setInvoice(this);
     }
 }

@@ -1,21 +1,29 @@
 package com.clinicsaas.event;
 
+import org.springframework.context.ApplicationEvent;
 import java.util.UUID;
 
-public class InvoiceCreatedEvent {
+public class InvoiceCreatedEvent extends ApplicationEvent {
     private final UUID invoiceId;
-    private final UUID tenantId;
+    private final UUID clinicId;
+    private final UUID userId;
 
-    public InvoiceCreatedEvent(UUID invoiceId, UUID tenantId) {
+    public InvoiceCreatedEvent(Object source, UUID invoiceId, UUID clinicId, UUID userId) {
+        super(source);
         this.invoiceId = invoiceId;
-        this.tenantId = tenantId;
+        this.clinicId = clinicId;
+        this.userId = userId;
     }
 
     public UUID getInvoiceId() {
         return invoiceId;
     }
 
-    public UUID getTenantId() {
-        return tenantId;
+    public UUID getClinicId() {
+        return clinicId;
+    }
+
+    public UUID getUserId() {
+        return userId;
     }
 }
