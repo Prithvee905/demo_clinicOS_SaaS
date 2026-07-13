@@ -19,7 +19,7 @@ public class AuditLogService {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void logAction(String action, String entityType, UUID entityId, String metadata) {
         String userIdStr = TenantContext.getUserId();
         String clinicIdStr = TenantContext.getTenantId();
@@ -32,7 +32,7 @@ public class AuditLogService {
         logAction(UUID.fromString(userIdStr), UUID.fromString(clinicIdStr), action, entityType, entityId, metadata);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void logAction(UUID userId, UUID clinicId, String action, String entityType, UUID entityId, String metadata) {
         try {
             AuditLog auditLog = new AuditLog();
