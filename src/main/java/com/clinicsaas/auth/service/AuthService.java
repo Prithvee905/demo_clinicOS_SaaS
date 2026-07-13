@@ -51,6 +51,11 @@ public class AuthService {
             throw new CustomException("Email already registered", HttpStatus.BAD_REQUEST, "EMAIL_ALREADY_EXISTS");
         }
 
+        // Validate globally unique clinic email
+        if (clinicRepository.existsByEmail(request.getClinicEmail())) {
+            throw new CustomException("Clinic email already registered", HttpStatus.BAD_REQUEST, "CLINIC_EMAIL_ALREADY_EXISTS");
+        }
+
         String clinicCode = request.getClinicCode();
         if (clinicCode == null || clinicCode.isBlank()) {
             clinicCode = generateClinicCode(request.getClinicName());

@@ -9,4 +9,5 @@ import java.util.UUID;
 @Repository
 public interface ClinicRepository extends JpaRepository<Clinic, UUID> {
     Optional<Clinic> findByClinicCode(String clinicCode);
+    boolean existsByEmail(String email);
 }
