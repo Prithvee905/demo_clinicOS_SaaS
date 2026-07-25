@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Allow images from any domain (for future use)
+  images: {
+    domains: ["clinicossaas-production.up.railway.app"],
+  },
 };
 
 export default nextConfig;
