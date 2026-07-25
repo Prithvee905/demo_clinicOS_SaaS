@@ -29,7 +29,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     setLocalSession(activeSession);
     setLoading(false);
 
-    if (!activeSession && pathname !== '/login') {
+    if (!activeSession && pathname !== '/login' && !pathname.startsWith('/reset-password')) {
       router.push('/login');
     }
   }, [pathname, router]);
@@ -44,7 +44,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     router.push('/login');
   };
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/reset-password')) {
     return <>{children}</>;
   }
 

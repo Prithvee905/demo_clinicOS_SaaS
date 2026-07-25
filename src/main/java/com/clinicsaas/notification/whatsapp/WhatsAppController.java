@@ -14,6 +14,22 @@ public class WhatsAppController {
     @Autowired
     private WhatsAppSenderService whatsAppSenderService;
 
+    @Autowired
+    private com.clinicsaas.notification.pdf.S3StorageService s3StorageService;
+
+    @GetMapping("/test-s3")
+    public ResponseEntity<String> testS3() {
+        try {
+            String url = s3StorageService.uploadAndPresign("test-debug-key", "test-content".getBytes());
+            return ResponseEntity.ok("Success: " + url);
+        } catch (Exception e) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            return ResponseEntity.status(500).body("Failed: " + e.getMessage() + "\nStacktrace:\n" + sw.toString());
+        }
+    }
+
     @PostMapping("/send-invoice/{invoiceId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
     public ResponseEntity<WhatsAppLog> sendInvoice(@PathVariable UUID invoiceId) {

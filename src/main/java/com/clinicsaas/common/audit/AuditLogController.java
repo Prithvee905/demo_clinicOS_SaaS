@@ -20,11 +20,11 @@ public class AuditLogController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<AuditLog>> getAuditLogs(
+    public ResponseEntity<Page<com.clinicsaas.common.audit.dto.AuditLogResponseDto>> getAuditLogs(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<AuditLog> response = auditLogService.getRecentLogs(pageable);
+        Page<com.clinicsaas.common.audit.dto.AuditLogResponseDto> response = auditLogService.getRecentLogs(pageable);
         return ResponseEntity.ok(response);
     }
 }

@@ -58,7 +58,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
   
   let response = await fetch(url, { ...options, headers });
   
-  if (response.status === 401 && session?.refreshToken) {
+  if ((response.status === 401 || response.status === 403) && session?.refreshToken) {
     // Attempt Token Refresh
     if (!isRefreshing) {
       isRefreshing = true;
@@ -81,12 +81,16 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
           onRefreshed(newSession.accessToken);
         } else {
           setSession(null);
-          window.location.href = '/login';
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
           throw new Error('Session expired');
         }
       } catch (err) {
         setSession(null);
-        window.location.href = '/login';
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         throw err;
       } finally {
         isRefreshing = false;
@@ -102,5 +106,12 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
     });
   }
   
+  if ((response.status === 401 || response.status === 403) && !session?.refreshToken) {
+    setSession(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  }
+
   return response;
 }

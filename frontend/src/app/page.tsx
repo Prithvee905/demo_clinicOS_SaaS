@@ -26,11 +26,14 @@ interface DashboardMetrics {
 interface AuditLog {
   id: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
   action: string;
   entityType: string;
   entityId: string;
   metadata: string;
-  timestamp: string;
+  createdAt?: string;
+  timestamp?: string;
 }
 
 export default function DashboardPage() {
@@ -203,31 +206,42 @@ export default function DashboardPage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase">
-                        <th className="pb-3">Timestamp</th>
+                        <th className="pb-3">Timestamp / Date</th>
+                        <th className="pb-3">Performed By</th>
                         <th className="pb-3">Action</th>
                         <th className="pb-3">Entity</th>
-                        <th className="pb-3">Metadata</th>
+                        <th className="pb-3">Details</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {auditLogs.map((log) => (
-                        <tr key={log.id} className="text-slate-300">
-                          <td className="py-3 text-xs text-slate-500 whitespace-nowrap">
-                            {new Date(log.timestamp).toLocaleString()}
-                          </td>
-                          <td className="py-3 whitespace-nowrap">
-                            <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-700 uppercase">
-                              {log.action}
-                            </span>
-                          </td>
-                          <td className="py-3 text-xs text-slate-400 whitespace-nowrap">
-                            {log.entityType} ({log.entityId.substring(0, 8)})
-                          </td>
-                          <td className="py-3 text-xs text-slate-400 truncate max-w-[200px]">
-                            {log.metadata}
-                          </td>
-                        </tr>
-                      ))}
+                      {auditLogs.map((log) => {
+                        const displayDate = log.createdAt 
+                          ? new Date(log.createdAt).toLocaleString() 
+                          : (log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A');
+                        const performer = log.userName || log.userEmail || (log.userId ? `User (${log.userId.substring(0, 6)})` : 'System');
+
+                        return (
+                          <tr key={log.id} className="text-slate-300">
+                            <td className="py-3 text-xs text-slate-400 whitespace-nowrap">
+                              {displayDate}
+                            </td>
+                            <td className="py-3 text-xs font-semibold text-violet-400 whitespace-nowrap">
+                              {performer}
+                            </td>
+                            <td className="py-3 whitespace-nowrap">
+                              <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-700 uppercase">
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="py-3 text-xs text-slate-400 whitespace-nowrap">
+                              {log.entityType} ({log.entityId ? log.entityId.substring(0, 8) : 'N/A'})
+                            </td>
+                            <td className="py-3 text-xs text-slate-400 truncate max-w-[200px]" title={log.metadata}>
+                              {log.metadata}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

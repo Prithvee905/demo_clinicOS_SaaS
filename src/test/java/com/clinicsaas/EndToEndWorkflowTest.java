@@ -153,6 +153,42 @@ public class EndToEndWorkflowTest {
         System.out.println("Clinic Name: " + clinic.getName());
         System.out.println("Clinic Code: " + clinic.getClinicCode());
         System.out.println("Clinic Status: " + clinic.getStatus());
+
+        // Verify duplicate clinic email fails registration
+        RegisterRequest dupClinicEmailRequest = new RegisterRequest();
+        dupClinicEmailRequest.setClinicName("Glow Dental Branch");
+        dupClinicEmailRequest.setClinicCode("glow-dental-branch");
+        dupClinicEmailRequest.setOwnerName("Dr. Sarah Paul");
+        dupClinicEmailRequest.setClinicPhone("+91-9988776699");
+        dupClinicEmailRequest.setClinicEmail("contact@glowdental.com"); // Duplicate
+        dupClinicEmailRequest.setClinicAddress("789, Health Enclave, Bangalore");
+        dupClinicEmailRequest.setAdminEmail("admin-branch@glowdental.com"); // Unique
+        dupClinicEmailRequest.setAdminName("Branch Admin");
+        dupClinicEmailRequest.setAdminPhone("+91-9988776690");
+        dupClinicEmailRequest.setPassword("adminpass123");
+
+        ResponseEntity<String> dupClinicEmailResponse = restTemplate.postForEntity(
+                "/api/auth/register", dupClinicEmailRequest, String.class);
+        assertEquals(HttpStatus.BAD_REQUEST, dupClinicEmailResponse.getStatusCode());
+        assertTrue(dupClinicEmailResponse.getBody().contains("Clinic email already registered"));
+
+        // Verify duplicate admin email fails registration
+        RegisterRequest dupAdminEmailRequest = new RegisterRequest();
+        dupAdminEmailRequest.setClinicName("Glow Dental Allied");
+        dupAdminEmailRequest.setClinicCode("glow-dental-allied");
+        dupAdminEmailRequest.setOwnerName("Dr. Sarah Paul");
+        dupAdminEmailRequest.setClinicPhone("+91-9988776688");
+        dupAdminEmailRequest.setClinicEmail("contact-allied@glowdental.com"); // Unique
+        dupAdminEmailRequest.setClinicAddress("123, Allied Enclave, Bangalore");
+        dupAdminEmailRequest.setAdminEmail("admin@glowdental.com"); // Duplicate
+        dupAdminEmailRequest.setAdminName("Allied Admin");
+        dupAdminEmailRequest.setAdminPhone("+91-9988776680");
+        dupAdminEmailRequest.setPassword("adminpass123");
+
+        ResponseEntity<String> dupAdminEmailResponse = restTemplate.postForEntity(
+                "/api/auth/register", dupAdminEmailRequest, String.class);
+        assertEquals(HttpStatus.BAD_REQUEST, dupAdminEmailResponse.getStatusCode());
+        assertTrue(dupAdminEmailResponse.getBody().contains("Email already registered"));
     }
 
     @Test

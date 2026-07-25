@@ -11,14 +11,16 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "invoices")
+@Table(name = "invoices", uniqueConstraints = {
+    @UniqueConstraint(name = "invoices_clinic_id_invoice_number_key", columnNames = {"clinic_id", "invoice_number"})
+})
 public class Invoice extends BaseTenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "invoice_number", nullable = false, unique = true)
+    @Column(name = "invoice_number", nullable = false)
     private String invoiceNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)

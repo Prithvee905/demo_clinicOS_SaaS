@@ -21,6 +21,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
     @Query("SELECT MAX(i.invoiceNumber) FROM Invoice i WHERE i.clinicId = :clinicId AND i.invoiceNumber LIKE :prefixPattern")
     String findMaxInvoiceNumberByClinicIdAndPrefix(@Param("clinicId") UUID clinicId, @Param("prefixPattern") String prefixPattern);
 
+    @Query("SELECT MAX(i.invoiceNumber) FROM Invoice i WHERE i.invoiceNumber LIKE :prefixPattern")
+    String findMaxInvoiceNumberByPrefix(@Param("prefixPattern") String prefixPattern);
+
     long countByClinicIdAndStatus(UUID clinicId, String status);
 
     long countByClinicId(UUID clinicId);

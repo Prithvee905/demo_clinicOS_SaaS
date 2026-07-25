@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://ep-autumn-bonus-az0gvikk.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&connectTimeout=30&socketTimeout=30
+    username: neondb_owner
+    password: npg_jBu36nzCAcYq
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0
+      idle-timeout: 60000
+      connection-timeout: 60000
+      max-lifetime: 1800000
+      pool-name: ClinicSaasNeonHikariCP
+      connection-test-query: SELECT 1
+      keepalive-time: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    connect-retries: 5
+    connect-retries-interval: 10
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.springframework.web: WARN

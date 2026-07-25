@@ -18,6 +18,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -42,8 +44,10 @@ public class InvoiceNotificationListener {
     @Autowired
     private WhatsAppSenderService whatsAppSenderService;
 
+
     @Async("virtualThreadExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleInvoiceCreated(InvoiceCreatedEvent event) {
         log.info("Processing InvoiceCreatedEvent asynchronously in background for invoice: {}", event.getInvoiceId());
         

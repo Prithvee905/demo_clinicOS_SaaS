@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Forgot password
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordClinicCode, setForgotPasswordClinicCode] = useState('');
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState<string | null>(null);
+
   // Login inputs
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -61,6 +67,26 @@ export default function LoginPage() {
       router.push('/');
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordMessage(null);
+    setLoading(true);
+
+    try {
+      const response = await apiFetch('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: forgotPasswordEmail, clinicCode: forgotPasswordClinicCode }),
+      });
+
+      const data = await response.text();
+      setForgotPasswordMessage(data);
+    } catch (err: any) {
+      setForgotPasswordMessage('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -194,9 +220,21 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(true);
+                    setForgotPasswordMessage(null);
+                  }}
+                  className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <input
                 type="password"
                 required
@@ -353,6 +391,75 @@ export default function LoginPage() {
           </form>
         )}
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <h3 className="text-xl font-bold text-white mb-2">Reset Password</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+
+            {forgotPasswordMessage ? (
+              <div className="mb-6 p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-xl text-emerald-300 text-sm text-center">
+                {forgotPasswordMessage}
+                <button
+                  onClick={() => setShowForgotPassword(false)}
+                  className="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Clinic Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. city-care"
+                    value={forgotPasswordClinicCode}
+                    onChange={(e) => setForgotPasswordClinicCode(e.target.value.toLowerCase())}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-3 text-slate-200 focus:outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="doctor@clinic.com"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-3 text-slate-200 focus:outline-none transition-all"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(false)}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white font-semibold py-3 rounded-xl shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {loading ? 'Sending...' : 'Send Link'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

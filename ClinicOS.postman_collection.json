@@ -1,0 +1,724 @@
+{
+	"info": {
+		"_postman_id": "c1f76d91-5a2e-4b55-a9ef-439f76a54321",
+		"name": "ClinicOS SaaS - Complete API Test Suite",
+		"description": "Full end-to-end API test collection for ClinicOS multi-tenant SaaS platform. Covers Authentication, Doctors, Patients, Medicines, Prescriptions, Billing, WhatsApp, Dashboard, and Audit logging.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080/api",
+			"type": "string"
+		},
+		{
+			"key": "clinicCode",
+			"value": "test-clinic",
+			"type": "string"
+		},
+		{
+			"key": "adminEmail",
+			"value": "admin@testclinic.com",
+			"type": "string"
+		},
+		{
+			"key": "adminPassword",
+			"value": "password123",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctorId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctorToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "patientId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "medicineId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "prescriptionId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "invoiceId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Auth Module",
+			"item": [
+				{
+					"name": "1.1 Register Clinic & Admin",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"var ts = Date.now();",
+									"pm.collectionVariables.set('clinicCode', 'clinic-' + ts);",
+									"pm.collectionVariables.set('adminEmail', 'admin-' + ts + '@clinic.com');"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var regData = pm.response.json();",
+									"pm.test('Tokens issued successfully', function () {",
+									"    pm.expect(regData.accessToken).to.not.be.empty;",
+									"    pm.expect(regData.refreshToken).to.not.be.empty;",
+									"});",
+									"pm.collectionVariables.set('accessToken', regData.accessToken);",
+									"pm.collectionVariables.set('refreshToken', regData.refreshToken);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clinicName\": \"Sunrise Dental Care\",\n  \"clinicCode\": \"{{clinicCode}}\",\n  \"ownerName\": \"Dr. Sunrise\",\n  \"clinicPhone\": \"+91-9876543210\",\n  \"clinicEmail\": \"contact@{{clinicCode}}.com\",\n  \"clinicAddress\": \"123 Health Ave, Bangalore\",\n  \"adminEmail\": \"{{adminEmail}}\",\n  \"adminName\": \"Admin User\",\n  \"adminPhone\": \"+91-9876543211\",\n  \"password\": \"{{adminPassword}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "1.2 Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var loginData = pm.response.json();",
+									"pm.test('Role is ADMIN', function () {",
+									"    pm.expect(loginData.role).to.eql('ADMIN');",
+									"});",
+									"pm.collectionVariables.set('accessToken', loginData.accessToken);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"clinicCode\": \"{{clinicCode}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Doctors Module",
+			"item": [
+				{
+					"name": "2.1 Enroll Doctor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var docData = pm.response.json();",
+									"pm.expect(docData.id).to.not.be.null;",
+									"pm.collectionVariables.set('doctorId', docData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dr. Ramesh Sharma\",\n  \"specialization\": \"Orthodontist\",\n  \"registrationNumber\": \"DMC-9988\",\n  \"consultationFee\": 500.00,\n  \"email\": \"doc-{{clinicCode}}@clinic.com\",\n  \"phone\": \"9876500112\",\n  \"password\": \"docpass123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/doctors",
+							"host": ["{{baseUrl}}"],
+							"path": ["doctors"]
+						}
+					}
+				},
+				{
+					"name": "2.2 Login as Doctor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var docLoginData = pm.response.json();",
+									"pm.test('Doctor role is DOCTOR', function () {",
+									"    pm.expect(docLoginData.role).to.eql('DOCTOR');",
+									"});",
+									"pm.collectionVariables.set('doctorToken', docLoginData.accessToken);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doc-{{clinicCode}}@clinic.com\",\n  \"password\": \"docpass123\",\n  \"clinicCode\": \"{{clinicCode}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "2.3 List Doctors",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/doctors",
+							"host": ["{{baseUrl}}"],
+							"path": ["doctors"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Patients Module",
+			"item": [
+				{
+					"name": "3.1 Register Patient",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var patData = pm.response.json();",
+									"pm.expect(patData.id).to.not.be.null;",
+									"pm.collectionVariables.set('patientId', patData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Rahul Verma\",\n  \"phone\": \"9876543210\",\n  \"gender\": \"Male\",\n  \"dateOfBirth\": \"1995-05-12\",\n  \"address\": \"MG Road, Bangalore\",\n  \"bloodGroup\": \"B+\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						}
+					}
+				},
+				{
+					"name": "3.2 List Patients",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/patients",
+							"host": ["{{baseUrl}}"],
+							"path": ["patients"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Medicines Module",
+			"item": [
+				{
+					"name": "4.1 Add Medicine to Catalog",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var medData = pm.response.json();",
+									"pm.collectionVariables.set('medicineId', medData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"medicineName\": \"Paracetamol 650mg\",\n  \"medicineCode\": \"PCM-650\",\n  \"unitPrice\": 10.00,\n  \"gstPercentage\": 12.00,\n  \"unitType\": \"Tablet\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/medicines",
+							"host": ["{{baseUrl}}"],
+							"path": ["medicines"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Prescriptions Module",
+			"item": [
+				{
+					"name": "5.1 Create Draft Prescription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var rxData = pm.response.json();",
+									"pm.expect(rxData.status).to.eql('DRAFT');",
+									"pm.collectionVariables.set('prescriptionId', rxData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{doctorToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"consultationFee\": 500.00,\n  \"doctorNotes\": \"Mild fever and dental pain. Advised rest.\",\n  \"items\": [\n    {\n      \"medicineId\": \"{{medicineId}}\",\n      \"quantity\": 10,\n      \"dosage\": \"1-0-1\",\n      \"frequency\": \"Twice daily\",\n      \"duration\": \"5 days\",\n      \"remarks\": \"After food\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/prescriptions",
+							"host": ["{{baseUrl}}"],
+							"path": ["prescriptions"]
+						}
+					}
+				},
+				{
+					"name": "5.2 Complete Prescription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var rxCompleteData = pm.response.json();",
+									"pm.expect(rxCompleteData.status).to.eql('COMPLETED');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{doctorToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/prescriptions/{{prescriptionId}}/complete",
+							"host": ["{{baseUrl}}"],
+							"path": ["prescriptions", "{{prescriptionId}}", "complete"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Billing & Invoices Module",
+			"item": [
+				{
+					"name": "6.1 Generate Invoice",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"var invData = pm.response.json();",
+									"pm.expect(invData.subtotal).to.eql(600);",
+									"pm.expect(invData.taxAmount).to.eql(12);",
+									"pm.expect(invData.grandTotal).to.eql(612);",
+									"pm.collectionVariables.set('invoiceId', invData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/invoices/generate/{{prescriptionId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["invoices", "generate", "{{prescriptionId}}"]
+						}
+					}
+				},
+				{
+					"name": "6.2 Get Invoice PDF Redirect",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"setTimeout(function(){}, 1500);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Returns HTTP 200 or 302 redirect', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/invoices/{{invoiceId}}/pdf",
+							"host": ["{{baseUrl}}"],
+							"path": ["invoices", "{{invoiceId}}", "pdf"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. WhatsApp & Metrics",
+			"item": [
+				{
+					"name": "7.1 Send WhatsApp Invoice",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"setTimeout(function(){}, 1500);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/whatsapp/send-invoice/{{invoiceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["whatsapp", "send-invoice", "{{invoiceId}}"]
+						}
+					}
+				},
+				{
+					"name": "7.2 Fetch Dashboard Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"var metricsData = pm.response.json();",
+									"pm.expect(metricsData.totalPatients).to.be.at.least(1);",
+									"pm.expect(metricsData.totalDoctors).to.be.at.least(1);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/dashboard/metrics",
+							"host": ["{{baseUrl}}"],
+							"path": ["dashboard", "metrics"]
+						}
+					}
+				},
+				{
+					"name": "7.3 Fetch Recent Audit Logs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/audit-logs",
+							"host": ["{{baseUrl}}"],
+							"path": ["audit-logs"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

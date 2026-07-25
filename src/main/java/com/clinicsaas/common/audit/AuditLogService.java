@@ -53,12 +53,39 @@ public class AuditLogService {
         }
     }
 
+    @Autowired
+    private com.clinicsaas.auth.repository.UserRepository userRepository;
+
     @Transactional(readOnly = true)
-    public Page<AuditLog> getRecentLogs(Pageable pageable) {
+    public Page<com.clinicsaas.common.audit.dto.AuditLogResponseDto> getRecentLogs(Pageable pageable) {
         String clinicIdStr = TenantContext.getTenantId();
         if (clinicIdStr == null) {
             return Page.empty();
         }
-        return auditLogRepository.findByClinicIdOrderByCreatedAtDesc(UUID.fromString(clinicIdStr), pageable);
+        Page<AuditLog> logs = auditLogRepository.findByClinicIdOrderByCreatedAtDesc(UUID.fromString(clinicIdStr), pageable);
+        return logs.map(this::mapToDto);
+    }
+
+    private com.clinicsaas.common.audit.dto.AuditLogResponseDto mapToDto(AuditLog logRecord) {
+        String userName = "System";
+        String userEmail = null;
+        if (logRecord.getUserId() != null) {
+            var userOpt = userRepository.findById(logRecord.getUserId());
+            if (userOpt.isPresent()) {
+                userName = userOpt.get().getName();
+                userEmail = userOpt.get().getEmail();
+            }
+        }
+        return new com.clinicsaas.common.audit.dto.AuditLogResponseDto(
+                logRecord.getId(),
+                logRecord.getUserId(),
+                userName,
+                userEmail,
+                logRecord.getAction(),
+                logRecord.getEntityType(),
+                logRecord.getEntityId(),
+                logRecord.getMetadata(),
+                logRecord.getCreatedAt()
+        );
     }
 }

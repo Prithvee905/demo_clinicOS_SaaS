@@ -18,7 +18,7 @@ public interface PatientRepository extends JpaRepository<Patient, UUID> {
     boolean existsByClinicIdAndPhoneAndStatus(UUID clinicId, String phone, String status);
 
     @Query("SELECT p FROM Patient p WHERE p.clinicId = :clinicId AND p.status = 'ACTIVE' AND " +
-           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR p.phone LIKE CONCAT('%', :search, '%'))")
+           "(CAST(:search AS string) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) OR p.phone LIKE CONCAT('%', CAST(:search AS string), '%'))")
     Page<Patient> searchPatients(@Param("clinicId") UUID clinicId, @Param("search") String search, Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinicId = :clinicId AND p.status = 'ACTIVE'")

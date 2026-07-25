@@ -18,7 +18,7 @@ public class InvoiceNumberGenerator {
         int year = LocalDate.now().getYear();
         String prefix = "INV-" + year + "-";
         
-        String maxInvoiceNumber = invoiceRepository.findMaxInvoiceNumberByClinicIdAndPrefix(clinicId, prefix + "%");
+        String maxInvoiceNumber = invoiceRepository.findMaxInvoiceNumberByPrefix(prefix + "%");
         
         int nextSequence = 1;
         if (maxInvoiceNumber != null && maxInvoiceNumber.length() > prefix.length()) {

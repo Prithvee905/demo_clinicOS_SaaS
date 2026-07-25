@@ -14,6 +14,9 @@ import com.clinicsaas.common.exception.CustomException;
 import com.clinicsaas.common.tenant.TenantContext;
 import com.clinicsaas.doctor.domain.Doctor;
 import com.clinicsaas.doctor.repository.DoctorRepository;
+import com.clinicsaas.auth.domain.PasswordResetToken;
+import com.clinicsaas.auth.repository.PasswordResetTokenRepository;
+import com.clinicsaas.notification.email.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Base64;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 
 @Service
 public class AuthService {
@@ -43,6 +50,14 @@ public class AuthService {
 
     @Autowired
     private AuditLogService auditLogService;
+
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
     public AuthResponse registerTenant(RegisterRequest request) {
@@ -206,5 +221,81 @@ public class AuthService {
             count++;
         }
         return code;
+    }
+
+    @Transactional
+    public void generatePasswordResetToken(String email, String clinicCode) {
+        // Resolve clinic code
+        Optional<Clinic> clinicOpt = clinicRepository.findByClinicCode(clinicCode);
+        if (clinicOpt.isEmpty()) {
+            return; // Act like it worked to prevent enumeration
+        }
+
+        // Find user in this clinic specifically
+        Optional<User> userOpt = userRepository.findByEmailAndClinicIdAndStatus(email, clinicOpt.get().getId(), "ACTIVE");
+        if (userOpt.isEmpty()) {
+            return; // Act like it worked
+        }
+        User user = userOpt.get();
+
+        // Ensure only one active token per user by deleting existing ones
+        passwordResetTokenRepository.deleteByUser(user);
+        passwordResetTokenRepository.flush(); // Force delete before insert to avoid unique constraint violation
+
+        // Generate cryptographically secure token (32 bytes -> Base64 URL safe)
+        byte[] randomBytes = new byte[32];
+        secureRandom.nextBytes(randomBytes);
+        String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+
+        // Hash the token to store in the database (SHA-256)
+        String hashedToken = hashToken(rawToken);
+
+        // Save to DB with 30 minute expiry
+        PasswordResetToken resetToken = new PasswordResetToken(user, hashedToken, LocalDateTime.now().plusMinutes(30));
+        passwordResetTokenRepository.save(resetToken);
+
+        // Send email with the RAW token
+        System.out.println("DEBUG - GENERATED rawToken: [" + rawToken + "]");
+        emailService.sendPasswordResetEmail(user.getEmail(), rawToken);
+    }
+
+    @Transactional
+    public void resetPassword(String rawToken, String newPassword) {
+        // Enforce basic password policy check before processing token
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new CustomException("Password must be at least 8 characters long", HttpStatus.BAD_REQUEST, "WEAK_PASSWORD");
+        }
+        
+        rawToken = rawToken.trim();
+        String hashedToken = hashToken(rawToken);
+        System.out.println("DEBUG - Received rawToken: [" + rawToken + "]");
+        System.out.println("DEBUG - Computed hashedToken: [" + hashedToken + "]");
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(hashedToken)
+                .orElseThrow(() -> new CustomException("Invalid or expired reset token", HttpStatus.BAD_REQUEST, "INVALID_TOKEN"));
+
+        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new CustomException("Reset token has expired", HttpStatus.BAD_REQUEST, "EXPIRED_TOKEN");
+        }
+
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Delete the token immediately after successful use
+        passwordResetTokenRepository.delete(resetToken);
+        
+        auditLogService.logAction(user.getId(), user.getClinicId(), "PASSWORD_RESET", "USER", user.getId(), "User reset their password");
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(rawToken.getBytes());
+            return Base64.getEncoder().encodeToString(hashBytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash token", e);
+        }
     }
 }

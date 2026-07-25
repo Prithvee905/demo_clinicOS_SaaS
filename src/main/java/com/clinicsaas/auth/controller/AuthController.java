@@ -5,6 +5,8 @@ import com.clinicsaas.auth.dto.CreateUserRequest;
 import com.clinicsaas.auth.dto.LoginRequest;
 import com.clinicsaas.auth.dto.RegisterRequest;
 import com.clinicsaas.auth.dto.RefreshTokenRequest;
+import com.clinicsaas.auth.dto.ForgotPasswordRequest;
+import com.clinicsaas.auth.dto.ResetPasswordRequest;
 import com.clinicsaas.auth.service.AuthService;
 import com.clinicsaas.common.audit.AuditLogService;
 import com.clinicsaas.common.tenant.TenantContext;
@@ -66,5 +68,18 @@ public class AuthController {
     public ResponseEntity<String> createUser(@Valid @RequestBody CreateUserRequest request) {
         authService.createUser(request);
         return new ResponseEntity<>("User added to clinic successfully", HttpStatus.CREATED);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.generatePasswordResetToken(request.getEmail(), request.getClinicCode());
+        // Always return the exact same success message to prevent user enumeration
+        return ResponseEntity.ok("If an account exists for this email, a reset link has been sent.");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok("Password has been reset successfully. You may now login.");
     }
 }

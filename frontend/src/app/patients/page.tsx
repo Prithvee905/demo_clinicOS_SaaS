@@ -388,6 +388,8 @@ export default function PatientsPage() {
                   <input
                     type="date"
                     value={dateOfBirth}
+                    max={new Date().toISOString().split('T')[0]}
+                    min="1900-01-01"
                     onChange={(e) => setDateOfBirth(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
                   />
