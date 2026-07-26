@@ -102,6 +102,9 @@ export default function InvoicesPage() {
     setSuccess(null);
     setWhatsappLoading(id);
 
+    // Find the invoice to fetch details for fallback link
+    const inv = invoices.find(i => i.id === id);
+
     try {
       const res = await apiFetch(`/whatsapp/send-invoice/${id}`, { method: 'POST' });
       const data = await res.json();
@@ -113,10 +116,30 @@ export default function InvoicesPage() {
       fetchInvoices();
       setTimeout(() => setSuccess(null), 4000);
     } catch (err: any) {
-      setError(err.message);
+      logErrorFallback(err);
+      
+      // Fallback: wa.me browser redirection
+      if (inv) {
+        const cleanPhone = inv.patientPhone.replace(/\D/g, ''); // strip non-numeric characters
+        const messageText = `Hello ${inv.patientName},\n\nYour invoice *${inv.invoiceNumber}* from ClinicOS is ready.\nTotal amount: *INR ${inv.grandTotal.toFixed(2)}*.\n\nYou can view and download the PDF copy here:\n${inv.pdfUrl || 'Link not generated yet'}\n\nThank you!`;
+        const encodedText = encodeURIComponent(messageText);
+        
+        // Open WhatsApp Web or Mobile WhatsApp App pre-filled
+        const waUrl = `https://wa.me/${cleanPhone.startsWith('91') || cleanPhone.length > 10 ? cleanPhone : '91' + cleanPhone}?text=${encodedText}`;
+        window.open(waUrl, '_blank');
+        
+        setSuccess(`Meta API not active. Opened WhatsApp Web/App fallback helper with invoice message.`);
+        setTimeout(() => setSuccess(null), 4000);
+      } else {
+        setError(err.message);
+      }
     } finally {
       setWhatsappLoading(null);
     }
+  };
+
+  const logErrorFallback = (err: any) => {
+    console.warn("API WhatsApp Send failed. Running browser-based direct link fallback.", err);
   };
 
   const canModify = session?.role === 'ADMIN' || session?.role === 'RECEPTIONIST';
