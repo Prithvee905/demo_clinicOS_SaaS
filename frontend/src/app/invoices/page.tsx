@@ -142,6 +142,33 @@ export default function InvoicesPage() {
     console.warn("API WhatsApp Send failed. Running browser-based direct link fallback.", err);
   };
 
+  const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (id: string, invoiceNumber: string) => {
+    setError(null);
+    setPdfLoading(id);
+    try {
+      const res = await apiFetch(`/invoices/${id}/pdf`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch invoice PDF document from server');
+      }
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPdfLoading(null);
+    }
+  };
+
   const canModify = session?.role === 'ADMIN' || session?.role === 'RECEPTIONIST';
 
   return (
@@ -236,15 +263,14 @@ export default function InvoicesPage() {
                       </button>
 
                       {inv.pdfUrl && (
-                        <a
-                          href={inv.pdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-lg transition-all"
+                        <button
+                          onClick={() => handleDownloadPdf(inv.id, inv.invoiceNumber)}
+                          disabled={pdfLoading === inv.id}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-lg transition-all disabled:opacity-50"
                         >
                           <FileDown className="w-3.5 h-3.5" />
-                          <span>PDF</span>
-                        </a>
+                          <span>{pdfLoading === inv.id ? 'Loading...' : 'PDF'}</span>
+                        </button>
                       )}
 
                       {inv.status !== 'CANCELLED' && canModify && (
@@ -374,15 +400,14 @@ export default function InvoicesPage() {
 
             <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40 flex justify-between">
               {selectedInvoice.pdfUrl && (
-                <a
-                  href={selectedInvoice.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition-all"
+                <button
+                  onClick={() => handleDownloadPdf(selectedInvoice.id, selectedInvoice.invoiceNumber)}
+                  disabled={pdfLoading === selectedInvoice.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                 >
                   <FileDown className="w-4 h-4" />
-                  <span>Download PDF Document</span>
-                </a>
+                  <span>{pdfLoading === selectedInvoice.id ? 'Downloading...' : 'Download PDF Document'}</span>
+                </button>
               )}
               <button
                 onClick={() => setIsViewModalOpen(false)}

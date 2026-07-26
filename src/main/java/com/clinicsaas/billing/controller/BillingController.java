@@ -46,11 +46,18 @@ public class BillingController {
     }
 
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<Void> getInvoicePdf(@PathVariable UUID id) {
+    public ResponseEntity<?> getInvoicePdf(@PathVariable UUID id) {
         InvoiceResponseDto response = billingService.getInvoiceById(id);
-        if (response.getPdfUrl() == null) {
-            throw new CustomException("PDF URL not available", HttpStatus.NOT_FOUND, "PDF_NOT_FOUND");
+        
+        // If S3 is not configured or failed, serve the PDF dynamically from backend bytes
+        if (response.getPdfUrl() == null || response.getPdfUrl().contains("mock-s3-storage.com")) {
+            byte[] pdfBytes = billingService.generateInvoicePdfBytes(id);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + response.getInvoiceNumber() + ".pdf")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                    .body(pdfBytes);
         }
+        
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, response.getPdfUrl())
                 .build();

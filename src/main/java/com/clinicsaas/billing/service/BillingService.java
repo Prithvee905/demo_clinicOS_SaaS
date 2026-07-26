@@ -187,6 +187,20 @@ public class BillingService {
     }
 
     @Transactional(readOnly = true)
+    public byte[] generateInvoicePdfBytes(UUID id) {
+        UUID clinicId = getClinicIdFromContext();
+        Invoice invoice = invoiceRepository.findByIdAndClinicId(id, clinicId)
+                .orElseThrow(() -> new CustomException("Invoice not found", HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND"));
+        
+        InvoiceResponseDto dto = mapToDto(invoice);
+        return pdfGeneratorService.generateInvoicePdf(
+                dto, 
+                invoice.getPatient().getName(), 
+                invoice.getPrescription().getDoctor().getName()
+        );
+    }
+
+    @Transactional(readOnly = true)
     public InvoiceResponseDto getInvoiceById(UUID id) {
         UUID clinicId = getClinicIdFromContext();
         Invoice invoice = invoiceRepository.findByIdAndClinicId(id, clinicId)
