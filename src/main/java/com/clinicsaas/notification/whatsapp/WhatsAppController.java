@@ -34,7 +34,6 @@ public class WhatsAppController {
     private com.clinicsaas.billing.repository.InvoiceRepository invoiceRepository;
 
     @GetMapping("/debug-send-latest")
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<String> debugSendLatest() {
         try {
             List<com.clinicsaas.billing.domain.Invoice> invoices = invoiceRepository.findAll();

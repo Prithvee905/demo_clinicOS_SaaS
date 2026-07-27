@@ -46,7 +46,7 @@ public class WhatsAppSenderService {
     @Autowired
     private AuditLogService auditLogService;
 
-    @Transactional
+    @Transactional(noRollbackFor = Exception.class)
     @Retry(name = "whatsappApi")
     public WhatsAppLog sendInvoiceNotification(UUID invoiceId) {
         Invoice invoice;
