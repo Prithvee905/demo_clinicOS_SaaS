@@ -114,30 +114,32 @@ public class WhatsAppSenderService {
             language.put("code", "en_US");
             template.put("language", language);
 
-            Map<String, Object> headerDoc = new HashMap<>();
-            headerDoc.put("type", "document");
-            Map<String, String> docDetails = new HashMap<>();
-            docDetails.put("link", pdfUrl);
-            docDetails.put("filename", "Invoice-" + invoiceNumber + ".pdf");
-            headerDoc.put("document", docDetails);
+            if (!"hello_world".equals(templateName)) {
+                Map<String, Object> headerDoc = new HashMap<>();
+                headerDoc.put("type", "document");
+                Map<String, String> docDetails = new HashMap<>();
+                docDetails.put("link", pdfUrl);
+                docDetails.put("filename", "Invoice-" + invoiceNumber + ".pdf");
+                headerDoc.put("document", docDetails);
 
-            Map<String, Object> bodyParam1 = new HashMap<>();
-            bodyParam1.put("type", "text");
-            bodyParam1.put("text", patientName);
+                Map<String, Object> bodyParam1 = new HashMap<>();
+                bodyParam1.put("type", "text");
+                bodyParam1.put("text", patientName);
 
-            Map<String, Object> bodyParam2 = new HashMap<>();
-            bodyParam2.put("type", "text");
-            bodyParam2.put("text", invoiceNumber);
+                Map<String, Object> bodyParam2 = new HashMap<>();
+                bodyParam2.put("type", "text");
+                bodyParam2.put("text", invoiceNumber);
 
-            Map<String, Object> headerComponent = new HashMap<>();
-            headerComponent.put("type", "header");
-            headerComponent.put("parameters", List.of(headerDoc));
+                Map<String, Object> headerComponent = new HashMap<>();
+                headerComponent.put("type", "header");
+                headerComponent.put("parameters", List.of(headerDoc));
 
-            Map<String, Object> bodyComponent = new HashMap<>();
-            bodyComponent.put("type", "body");
-            bodyComponent.put("parameters", List.of(bodyParam1, bodyParam2));
+                Map<String, Object> bodyComponent = new HashMap<>();
+                bodyComponent.put("type", "body");
+                bodyComponent.put("parameters", List.of(bodyParam1, bodyParam2));
 
-            template.put("components", List.of(headerComponent, bodyComponent));
+                template.put("components", List.of(headerComponent, bodyComponent));
+            }
             payload.put("template", template);
 
             restClient.post()
