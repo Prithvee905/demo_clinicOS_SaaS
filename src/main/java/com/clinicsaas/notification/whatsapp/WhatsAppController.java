@@ -30,6 +30,27 @@ public class WhatsAppController {
         }
     }
 
+    @Autowired
+    private com.clinicsaas.billing.repository.InvoiceRepository invoiceRepository;
+
+    @GetMapping("/debug-send-latest")
+    public ResponseEntity<String> debugSendLatest() {
+        try {
+            List<com.clinicsaas.billing.domain.Invoice> invoices = invoiceRepository.findAll();
+            if (invoices.isEmpty()) {
+                return ResponseEntity.ok("No invoices found in database to test.");
+            }
+            com.clinicsaas.billing.domain.Invoice latest = invoices.get(invoices.size() - 1);
+            WhatsAppLog log = whatsAppSenderService.sendInvoiceNotification(latest.getId());
+            return ResponseEntity.ok("Success! Sent WhatsApp for Invoice " + latest.getInvoiceNumber() + " to " + latest.getPatient().getPhone() + ". Status: " + log.getStatus() + ", MsgID: " + log.getMessageId());
+        } catch (Exception e) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            return ResponseEntity.status(500).body("Failed to send WhatsApp:\nError Message: " + e.getMessage() + "\n\nStacktrace:\n" + sw.toString());
+        }
+    }
+
     @GetMapping("/debug-config")
     public ResponseEntity<java.util.Map<String, String>> debugConfig() {
         java.util.Map<String, String> map = new java.util.HashMap<>();
