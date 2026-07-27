@@ -37,7 +37,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh-token", "/api/auth/logout", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/whatsapp/test-s3", "/api/whatsapp/debug-config", "/h2-console/**").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh-token", "/api/auth/logout", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/whatsapp/test-s3", "/api/whatsapp/debug-config", "/api/whatsapp/test-send/**", "/h2-console/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated()
             )

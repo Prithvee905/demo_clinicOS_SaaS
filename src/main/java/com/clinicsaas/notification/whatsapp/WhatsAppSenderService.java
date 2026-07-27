@@ -49,11 +49,17 @@ public class WhatsAppSenderService {
     @Transactional
     @Retry(name = "whatsappApi")
     public WhatsAppLog sendInvoiceNotification(UUID invoiceId) {
-        UUID clinicId = getClinicIdFromContext();
-
-        // 1. Fetch Invoice
-        Invoice invoice = invoiceRepository.findByIdAndClinicId(invoiceId, clinicId)
-                .orElseThrow(() -> new CustomException("Invoice not found", HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND"));
+        Invoice invoice;
+        String tenantStr = TenantContext.getTenantId();
+        if (tenantStr != null && !tenantStr.isBlank()) {
+            UUID clinicId = UUID.fromString(tenantStr);
+            invoice = invoiceRepository.findByIdAndClinicId(invoiceId, clinicId)
+                    .orElseThrow(() -> new CustomException("Invoice not found", HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND"));
+        } else {
+            invoice = invoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> new CustomException("Invoice not found", HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND"));
+        }
+        UUID clinicId = invoice.getClinicId();
 
         if (invoice.getFile() == null) {
             throw new CustomException("Invoice PDF has not been generated or uploaded yet", HttpStatus.BAD_REQUEST, "PDF_NOT_FOUND");

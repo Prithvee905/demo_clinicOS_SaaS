@@ -17,6 +17,19 @@ public class WhatsAppController {
     @Autowired
     private com.clinicsaas.notification.pdf.S3StorageService s3StorageService;
 
+    @GetMapping("/test-send/{invoiceId}")
+    public ResponseEntity<String> testSend(@PathVariable UUID invoiceId) {
+        try {
+            WhatsAppLog log = whatsAppSenderService.sendInvoiceNotification(invoiceId);
+            return ResponseEntity.ok("Success: Status = " + log.getStatus() + ", MessageID = " + log.getMessageId());
+        } catch (Exception e) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            return ResponseEntity.status(500).body("Failed: " + e.getMessage() + "\nStacktrace:\n" + sw.toString());
+        }
+    }
+
     @GetMapping("/debug-config")
     public ResponseEntity<java.util.Map<String, String>> debugConfig() {
         java.util.Map<String, String> map = new java.util.HashMap<>();
