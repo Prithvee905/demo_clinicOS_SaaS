@@ -181,6 +181,14 @@ public class WhatsAppSenderService {
         return whatsAppLog;
     }
 
+    public String getPhoneNumberId() { return phoneNumberId; }
+    public String getTemplateName() { return templateName; }
+    public String getMaskedToken() {
+        if (apiToken == null || apiToken.isBlank()) return "EMPTY/BLANK";
+        if (apiToken.length() <= 8) return apiToken;
+        return apiToken.substring(0, 4) + "..." + apiToken.substring(apiToken.length() - 4);
+    }
+
     @Transactional(readOnly = true)
     public List<WhatsAppLog> getLogsForInvoice(UUID invoiceId) {
         UUID clinicId = getClinicIdFromContext();

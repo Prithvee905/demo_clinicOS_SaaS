@@ -17,6 +17,15 @@ public class WhatsAppController {
     @Autowired
     private com.clinicsaas.notification.pdf.S3StorageService s3StorageService;
 
+    @GetMapping("/debug-config")
+    public ResponseEntity<java.util.Map<String, String>> debugConfig() {
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        map.put("phoneNumberId", whatsAppSenderService.getPhoneNumberId());
+        map.put("apiTokenMasked", whatsAppSenderService.getMaskedToken());
+        map.put("templateName", whatsAppSenderService.getTemplateName());
+        return ResponseEntity.ok(map);
+    }
+
     @GetMapping("/test-s3")
     public ResponseEntity<String> testS3() {
         try {
