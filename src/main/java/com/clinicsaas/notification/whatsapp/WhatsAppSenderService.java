@@ -175,7 +175,11 @@ public class WhatsAppSenderService {
             log.error("Failed to send WhatsApp message for invoice " + invoiceNumber, e);
             
             whatsAppLog.setStatus("FAILED");
-            whatsAppLog.setFailureReason(e.getMessage());
+            String failureMsg = e.getMessage();
+            if (failureMsg != null && failureMsg.length() > 250) {
+                failureMsg = failureMsg.substring(0, 250);
+            }
+            whatsAppLog.setFailureReason(failureMsg);
             whatsAppLogRepository.save(whatsAppLog);
 
             auditLogService.logAction("WHATSAPP_FAILED", "INVOICE", invoiceId, 
