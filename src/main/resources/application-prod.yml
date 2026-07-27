@@ -35,3 +35,9 @@ logging:
     org.springframework.security: WARN
     org.springframework.web: WARN
 
+app:
+  whatsapp:
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:mock-phone-id}
+    api-token: ${WHATSAPP_API_TOKEN:mock-token}
+    template-name: ${WHATSAPP_TEMPLATE_NAME:hello_world}
+
