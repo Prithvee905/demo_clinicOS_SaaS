@@ -14,9 +14,11 @@ public class AuditLogResponseDto {
     private String metadata;
     private LocalDateTime createdAt;
 
-    public AuditLogResponseDto() {}
+    public AuditLogResponseDto() {
+    }
 
-    public AuditLogResponseDto(UUID id, UUID userId, String userName, String userEmail, String action, String entityType, UUID entityId, String metadata, LocalDateTime createdAt) {
+    public AuditLogResponseDto(UUID id, UUID userId, String userName, String userEmail, String action,
+            String entityType, UUID entityId, String metadata, LocalDateTime createdAt) {
         this.id = id;
         this.userId = userId;
         this.userName = userName;

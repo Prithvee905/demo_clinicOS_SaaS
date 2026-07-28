@@ -54,6 +54,7 @@ app:
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:mock-phone-id}
     api-token: ${WHATSAPP_API_TOKEN:mock-token}
     template-name: ${WHATSAPP_TEMPLATE_NAME:invoice_delivery_template}
+    language-code: ${WHATSAPP_LANGUAGE_CODE:en}
 
 resilience4j:
   retry:

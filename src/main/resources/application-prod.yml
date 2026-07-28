@@ -40,4 +40,5 @@ app:
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:mock-phone-id}
     api-token: ${WHATSAPP_API_TOKEN:mock-token}
     template-name: ${WHATSAPP_TEMPLATE_NAME:hello_world}
+    language-code: ${WHATSAPP_LANGUAGE_CODE:en}
 

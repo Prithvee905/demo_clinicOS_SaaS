@@ -37,6 +37,9 @@ public class WhatsAppSenderService {
     @Value("${app.whatsapp.template-name}")
     private String templateName;
 
+    @Value("${app.whatsapp.language-code:en}")
+    private String languageCode;
+
     @Autowired
     private InvoiceRepository invoiceRepository;
 
@@ -117,7 +120,7 @@ public class WhatsAppSenderService {
             template.put("name", templateName);
             
             Map<String, String> language = new HashMap<>();
-            language.put("code", "en_US");
+            language.put("code", languageCode);
             template.put("language", language);
 
             if (!"hello_world".equals(templateName)) {
