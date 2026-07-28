@@ -40,6 +40,9 @@ public class WhatsAppSenderService {
     @Value("${app.whatsapp.language-code:en}")
     private String languageCode;
 
+    @Value("${app.whatsapp.send-params:false}")
+    private boolean sendParams;
+
     @Autowired
     private InvoiceRepository invoiceRepository;
 
@@ -123,7 +126,7 @@ public class WhatsAppSenderService {
             language.put("code", languageCode);
             template.put("language", language);
 
-            if (!"hello_world".equals(templateName)) {
+            if (sendParams && !"hello_world".equals(templateName)) {
                 Map<String, Object> headerDoc = new HashMap<>();
                 headerDoc.put("type", "document");
                 Map<String, String> docDetails = new HashMap<>();

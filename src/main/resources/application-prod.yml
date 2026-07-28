@@ -41,4 +41,5 @@ app:
     api-token: ${WHATSAPP_API_TOKEN:mock-token}
     template-name: ${WHATSAPP_TEMPLATE_NAME:hello_world}
     language-code: ${WHATSAPP_LANGUAGE_CODE:en}
+    send-params: ${WHATSAPP_SEND_PARAMS:false}
 
