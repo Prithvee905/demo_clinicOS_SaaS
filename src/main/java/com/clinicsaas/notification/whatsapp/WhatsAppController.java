@@ -42,7 +42,7 @@ public class WhatsAppController {
             }
             com.clinicsaas.billing.domain.Invoice latest = invoices.get(invoices.size() - 1);
             WhatsAppLog log = whatsAppSenderService.sendInvoiceNotification(latest.getId());
-            return ResponseEntity.ok("Success! Sent WhatsApp for Invoice " + latest.getInvoiceNumber() + " to " + latest.getPatient().getPhone() + ". Status: " + log.getStatus() + ", MsgID: " + log.getMessageId());
+            return ResponseEntity.ok("Success! Sent WhatsApp for Invoice " + latest.getInvoiceNumber() + " to " + log.getPhoneNumber() + ". Status: " + log.getStatus() + ", MsgID: " + log.getMessageId());
         } catch (Exception e) {
             java.io.StringWriter sw = new java.io.StringWriter();
             java.io.PrintWriter pw = new java.io.PrintWriter(sw);
