@@ -142,13 +142,17 @@ public class WhatsAppSenderService {
                 bodyParam2.put("type", "text");
                 bodyParam2.put("text", invoiceNumber);
 
+                Map<String, Object> bodyParam3 = new HashMap<>();
+                bodyParam3.put("type", "text");
+                bodyParam3.put("text", "ClinicOS Care");
+
                 Map<String, Object> headerComponent = new HashMap<>();
                 headerComponent.put("type", "header");
                 headerComponent.put("parameters", List.of(headerDoc));
 
                 Map<String, Object> bodyComponent = new HashMap<>();
                 bodyComponent.put("type", "body");
-                bodyComponent.put("parameters", List.of(bodyParam1, bodyParam2));
+                bodyComponent.put("parameters", List.of(bodyParam1, bodyParam2, bodyParam3));
 
                 template.put("components", List.of(headerComponent, bodyComponent));
             }
