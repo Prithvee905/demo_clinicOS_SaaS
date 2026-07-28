@@ -154,7 +154,7 @@ public class WhatsAppSenderService {
             }
             payload.put("template", template);
 
-            restClient.post()
+            String responseBody = restClient.post()
                     .uri(url)
                     .headers(headers -> {
                         headers.setBearerAuth(apiToken);
@@ -162,13 +162,13 @@ public class WhatsAppSenderService {
                     })
                     .body(payload)
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(String.class);
 
-            log.info("WhatsApp notification successfully delivered to API for {}", patientPhone);
+            log.info("WhatsApp notification successfully delivered to API for {}. Response: {}", patientPhone, responseBody);
 
             whatsAppLog.setStatus("SENT");
             whatsAppLog.setSentAt(LocalDateTime.now());
-            whatsAppLog.setMessageId("meta-msg-" + UUID.randomUUID().toString().substring(0, 8));
+            whatsAppLog.setMessageId(responseBody != null && responseBody.length() <= 250 ? responseBody : (responseBody != null ? responseBody.substring(0, 250) : "meta-ok"));
             whatsAppLogRepository.save(whatsAppLog);
 
             invoice.setStatus("SENT");
