@@ -75,6 +75,9 @@ public class WhatsAppSenderService {
         String patientPhone = invoice.getPatient().getPhone();
         String invoiceNumber = invoice.getInvoiceNumber();
         String pdfUrl = invoice.getFile().getUrl();
+        if (pdfUrl == null || pdfUrl.contains("mock-s3-storage.com")) {
+            pdfUrl = "https://clinicossaas-production.up.railway.app/api/invoices/public-pdf/" + invoiceId;
+        }
 
         // Create log record in PENDING status
         WhatsAppLog whatsAppLog = new WhatsAppLog();

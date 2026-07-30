@@ -62,4 +62,13 @@ public class BillingController {
                 .header(HttpHeaders.LOCATION, response.getPdfUrl())
                 .build();
     }
+
+    @GetMapping("/public-pdf/{id}")
+    public ResponseEntity<byte[]> getPublicInvoicePdf(@PathVariable UUID id) {
+        byte[] pdfBytes = billingService.generatePublicInvoicePdfBytes(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=Invoice-" + id + ".pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
 }
