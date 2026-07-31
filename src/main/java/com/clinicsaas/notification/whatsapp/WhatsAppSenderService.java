@@ -2,6 +2,8 @@ package com.clinicsaas.notification.whatsapp;
 
 import com.clinicsaas.billing.domain.Invoice;
 import com.clinicsaas.billing.repository.InvoiceRepository;
+import com.clinicsaas.auth.domain.Clinic;
+import com.clinicsaas.auth.repository.ClinicRepository;
 import com.clinicsaas.common.audit.AuditLogService;
 import com.clinicsaas.common.exception.CustomException;
 import com.clinicsaas.common.tenant.TenantContext;
@@ -45,6 +47,9 @@ public class WhatsAppSenderService {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private ClinicRepository clinicRepository;
 
     @Autowired
     private WhatsAppLogRepository whatsAppLogRepository;
@@ -137,6 +142,11 @@ public class WhatsAppSenderService {
                 docDetails.put("filename", "Invoice-" + invoiceNumber + ".pdf");
                 headerDoc.put("document", docDetails);
 
+                Clinic clinic = clinicRepository.findById(clinicId).orElse(null);
+                String clinicName = (clinic != null && clinic.getName() != null && !clinic.getName().isBlank()) 
+                        ? clinic.getName() 
+                        : "ClinicOS Care";
+
                 Map<String, Object> bodyParam1 = new HashMap<>();
                 bodyParam1.put("type", "text");
                 bodyParam1.put("text", patientName);
@@ -147,7 +157,7 @@ public class WhatsAppSenderService {
 
                 Map<String, Object> bodyParam3 = new HashMap<>();
                 bodyParam3.put("type", "text");
-                bodyParam3.put("text", "ClinicOS Care");
+                bodyParam3.put("text", clinicName);
 
                 Map<String, Object> headerComponent = new HashMap<>();
                 headerComponent.put("type", "header");
