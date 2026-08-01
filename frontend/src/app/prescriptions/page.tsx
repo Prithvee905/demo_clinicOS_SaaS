@@ -14,7 +14,11 @@ import {
   Search,
   Check,
   ClipboardList,
-  Loader2
+  Loader2,
+  Receipt,
+  User,
+  Stethoscope,
+  Sparkles
 } from 'lucide-react';
 
 interface PrescriptionItem {
@@ -51,7 +55,7 @@ interface Patient {
 interface Doctor {
   id: string;
   name: string;
-  userId: string;
+  specialization: string;
   consultationFee: number;
 }
 
@@ -60,50 +64,42 @@ interface Medicine {
   medicineCode: string;
   medicineName: string;
   unitPrice: number;
-  gstPercentage: number;
   unitType: string;
 }
 
 export default function PrescriptionsPage() {
   const [session, setSession] = useState<any>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Builder Modal state
+  // Reference lists for form dropdowns
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+
+  // Form Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
 
-  // Form Fields
-  const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [patientId, setPatientId] = useState('');
+  const [doctorId, setDoctorId] = useState('');
   const [consultationFee, setConsultationFee] = useState('');
   const [doctorNotes, setDoctorNotes] = useState('');
-  const [builderItems, setBuilderItems] = useState<PrescriptionItem[]>([]);
-
-  // Item Builder Inputs
-  const [medicineQuery, setMedicineQuery] = useState('');
-  const [medSearchResults, setMedSearchResults] = useState<Medicine[]>([]);
-  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [dosage, setDosage] = useState('1-0-1');
-  const [frequency, setFrequency] = useState('Daily (After meals)');
-  const [duration, setDuration] = useState('5 days');
-  const [remarks, setRemarks] = useState('');
-
+  const [items, setItems] = useState<PrescriptionItem[]>([]);
   const [formLoading, setFormLoading] = useState(false);
 
-  const fetchPrescriptions = async () => {
+  // View modal
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+
+  const fetchPrescriptions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await apiFetch('/prescriptions');
-      if (!res.ok) throw new Error('Failed to fetch prescriptions list');
+      if (!res.ok) throw new Error('Failed to load clinic prescriptions');
       const data = await res.json();
       setPrescriptions(data || []);
     } catch (err: any) {
@@ -111,188 +107,107 @@ export default function PrescriptionsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchMetadata = useCallback(async (userSession: any) => {
-    try {
-      // 1. Fetch Patients
-      const patientsRes = await apiFetch('/patients?size=100');
-      if (patientsRes.ok) {
-        const patientsData = await patientsRes.json();
-        setPatients(patientsData.content || []);
-      }
-
-      // 2. Fetch Doctors
-      const doctorsRes = await apiFetch('/doctors');
-      if (doctorsRes.ok) {
-        const doctorsData = await doctorsRes.json();
-        setDoctors(doctorsData || []);
-        
-        // Auto-select doctor profile if current user is doctor
-        if (userSession.role === 'DOCTOR') {
-          const docProfile = (doctorsData || []).find((d: Doctor) => d.name === userSession.name);
-          if (docProfile) {
-            setSelectedDoctorId(docProfile.id);
-            setConsultationFee(String(docProfile.consultationFee));
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load metadata', e);
-    }
   }, []);
 
-  useEffect(() => {
-    const actSession = getSession();
-    setSession(actSession);
-    fetchPrescriptions();
-    if (actSession) {
-      fetchMetadata(actSession);
-    }
-  }, [fetchMetadata]);
-
-  // Autocomplete medicine lookup
-  const handleMedicineSearch = async (query: string) => {
-    setMedicineQuery(query);
-    if (query.trim().length < 2) {
-      setMedSearchResults([]);
-      return;
-    }
+  const fetchReferenceData = async () => {
     try {
-      const res = await apiFetch(`/medicines/search?query=${encodeURIComponent(query)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMedSearchResults(data || []);
+      const [ptRes, docRes, medRes] = await Promise.all([
+        apiFetch('/patients?page=0&size=100'),
+        apiFetch('/doctors'),
+        apiFetch('/medicines?page=0&size=100'),
+      ]);
+
+      if (ptRes.ok) {
+        const ptData = await ptRes.json();
+        setPatients(ptData.content || []);
+      }
+      if (docRes.ok) {
+        const docData = await docRes.json();
+        setDoctors(docData || []);
+      }
+      if (medRes.ok) {
+        const medData = await medRes.json();
+        setMedicines(medData.content || []);
       }
     } catch (e) {
-      console.error(e);
+      // Ignore reference fetch errors
     }
   };
 
-  const selectMedicine = (med: Medicine) => {
-    setSelectedMedicine(med);
-    setMedicineQuery(med.medicineName);
-    setMedSearchResults([]);
-  };
+  useEffect(() => {
+    setSession(getSession());
+    fetchPrescriptions();
+    fetchReferenceData();
+  }, [fetchPrescriptions]);
 
-  const addBuilderItem = () => {
-    if (!selectedMedicine) return;
-    const newItem: PrescriptionItem = {
-      medicineId: selectedMedicine.id,
-      medicineName: selectedMedicine.medicineName,
-      quantity,
-      dosage,
-      frequency,
-      duration,
-      remarks,
-    };
-    setBuilderItems([...builderItems, newItem]);
-    
-    // reset item inputs
-    setSelectedMedicine(null);
-    setMedicineQuery('');
-    setQuantity(1);
-    setDosage('1-0-1');
-    setFrequency('Daily (After meals)');
-    setDuration('5 days');
-    setRemarks('');
-  };
-
-  const removeBuilderItem = (index: number) => {
-    setBuilderItems(builderItems.filter((_, i) => i !== index));
-  };
-
-  const openCreateBuilder = () => {
+  const openCreateModal = () => {
     setEditingPrescription(null);
-    setSelectedPatientId(patients[0]?.id || '');
+    setPatientId('');
+    setDoctorId('');
+    setConsultationFee('');
     setDoctorNotes('');
-    setBuilderItems([]);
-    
-    if (session.role === 'DOCTOR') {
-      const docProfile = doctors.find(d => d.name === session.name);
-      if (docProfile) {
-        setSelectedDoctorId(docProfile.id);
-        setConsultationFee(String(docProfile.consultationFee));
-      }
-    } else {
-      setSelectedDoctorId(doctors[0]?.id || '');
-      setConsultationFee('0.00');
-    }
+    setItems([]);
     setIsModalOpen(true);
   };
 
-  const openEditBuilder = (p: Prescription) => {
-    setEditingPrescription(p);
-    setSelectedPatientId(p.patientId);
-    setSelectedDoctorId(p.doctorId);
-    setConsultationFee(String(p.consultationFee));
-    setDoctorNotes(p.doctorNotes === '[REDACTED - DOCTORS ONLY]' ? '' : p.doctorNotes);
-    setBuilderItems(p.items.map(item => ({
-      medicineId: item.medicineId,
-      medicineName: item.medicineName,
-      quantity: item.quantity,
-      dosage: item.dosage,
-      frequency: item.frequency,
-      duration: item.duration,
-      remarks: item.remarks,
-    })));
-    setIsModalOpen(true);
+  const addItemRow = () => {
+    setItems([
+      ...items,
+      { medicineId: '', quantity: 1, dosage: '500mg', frequency: '1-0-1', duration: '5 days', remarks: 'After food' }
+    ]);
   };
 
-  const handleSaveDraft = async () => {
-    await submitPrescription('DRAFT');
+  const removeItemRow = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleComplete = async (prescriptionId?: string) => {
-    if (prescriptionId) {
-      // Transition existing draft to completed
-      setError(null);
-      setSuccess(null);
-      try {
-        const res = await apiFetch(`/prescriptions/${prescriptionId}/complete`, { method: 'POST' });
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.message || 'Failed to complete prescription');
-        }
-        setSuccess('Prescription completed successfully and pricing snapshotted!');
-        fetchPrescriptions();
-        setTimeout(() => setSuccess(null), 3000);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    } else {
-      // Save and Complete immediately
-      await submitPrescription('COMPLETED');
+  const updateItemRow = (index: number, field: keyof PrescriptionItem, value: any) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], [field]: value };
+    setItems(updated);
+  };
+
+  const handleDoctorSelect = (docId: string) => {
+    setDoctorId(docId);
+    const selDoc = doctors.find(d => d.id === docId);
+    if (selDoc) {
+      setConsultationFee(selDoc.consultationFee.toString());
     }
   };
 
-  const submitPrescription = async (targetStatus: 'DRAFT' | 'COMPLETED') => {
+  const handleSubmit = async (e: React.FormEvent, isComplete = false) => {
+    e.preventDefault();
     setError(null);
     setSuccess(null);
-    setFormLoading(true);
 
-    if (builderItems.length === 0) {
-      setError('Prescription must contain at least one medicine item');
-      setFormLoading(false);
+    if (!patientId || !doctorId) {
+      setError('Please select both a Patient and a Doctor.');
       return;
     }
 
-    try {
-      const payload = {
-        patientId: selectedPatientId,
-        doctorId: selectedDoctorId,
-        consultationFee: parseFloat(consultationFee),
-        doctorNotes,
-        items: builderItems.map(item => ({
-          medicineId: item.medicineId,
-          quantity: item.quantity,
-          dosage: item.dosage,
-          frequency: item.frequency,
-          duration: item.duration,
-          remarks: item.remarks,
-        })),
-      };
+    if (items.length === 0) {
+      setError('Please add at least one prescribed medicine item.');
+      return;
+    }
 
+    setFormLoading(true);
+
+    const payload = {
+      patientId,
+      doctorId,
+      consultationFee: parseFloat(consultationFee) || 0,
+      doctorNotes,
+      items: items.map(it => ({
+        medicineId: it.medicineId,
+        quantity: Number(it.quantity) || 1,
+        dosage: it.dosage,
+        frequency: it.frequency,
+        duration: it.duration,
+        remarks: it.remarks,
+      })),
+    };
+
+    try {
       let res;
       if (editingPrescription) {
         res = await apiFetch(`/prescriptions/${editingPrescription.id}`, {
@@ -306,25 +221,16 @@ export default function PrescriptionsPage() {
         });
       }
 
-      let data = await res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to save prescription');
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to save prescription.');
+      if (isComplete) {
+        await apiFetch(`/prescriptions/${data.id}/complete`, { method: 'POST' });
       }
 
-      if (targetStatus === 'COMPLETED' && (!editingPrescription || editingPrescription.status === 'DRAFT')) {
-        // Automatically complete the draft
-        const completeRes = await apiFetch(`/prescriptions/${data.id}/complete`, { method: 'POST' });
-        if (!completeRes.ok) {
-          const cData = await completeRes.json();
-          throw new Error(cData.message || 'Saved as draft, but failed to complete price snapshot.');
-        }
-      }
-
-      setSuccess(`Prescription saved as ${targetStatus} successfully!`);
+      setSuccess(`Prescription saved ${isComplete ? 'and marked COMPLETED' : 'as DRAFT'}!`);
       setIsModalOpen(false);
       fetchPrescriptions();
-      
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -333,20 +239,23 @@ export default function PrescriptionsPage() {
     }
   };
 
-  const openViewModal = (p: Prescription) => {
-    setSelectedPrescription(p);
-    setIsViewModalOpen(true);
+  const handleCompletePrescription = async (id: string) => {
+    try {
+      const res = await apiFetch(`/prescriptions/${id}/complete`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to complete prescription');
+      setSuccess('Prescription marked COMPLETED! Ready for billing invoice generation.');
+      fetchPrescriptions();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleGenerateInvoice = async (prescriptionId: string) => {
-    setError(null);
-    setSuccess(null);
     try {
       const res = await apiFetch(`/invoices/generate/${prescriptionId}`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Failed to generate billing invoice');
-      }
+      if (!res.ok) throw new Error(data.message || 'Failed to generate invoice');
       setSuccess(`Invoice ${data.invoiceNumber} generated successfully!`);
       fetchPrescriptions();
       setTimeout(() => setSuccess(null), 3000);
@@ -355,483 +264,391 @@ export default function PrescriptionsPage() {
     }
   };
 
-  const isDoctor = session?.role === 'DOCTOR';
-  const canBilling = session?.role === 'ADMIN' || session?.role === 'RECEPTIONIST';
+  const openViewModal = (p: Prescription) => {
+    setSelectedPrescription(p);
+    setIsViewModalOpen(true);
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header Banner */}
+      <div className="bg-white/90 backdrop-blur-xl border border-emerald-100 rounded-3xl p-6 md:p-8 shadow-xl shadow-emerald-950/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+        <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-100/60 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
         <div>
-          <h1 className="text-3xl font-extrabold text-white flex items-center gap-2">
-            <FileText className="w-8 h-8 text-violet-500" />
-            Clinical Prescriptions
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-emerald-100/80 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 uppercase">
+              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+              CLINICAL e-PRESCRIPTION REGISTRY
+            </span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
+            Digital Prescriptions
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Write digital prescriptions, snap prices, and prompt billing</p>
+          <p className="text-slate-600 text-sm font-medium mt-1">
+            Doctor prescriptions with medicine dosages, frequencies, consultation fees, and instant billing generation.
+          </p>
         </div>
-        {isDoctor && (
-          <button
-            onClick={openCreateBuilder}
-            className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-violet-500/10 active:scale-[0.98] transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Prescription</span>
-          </button>
-        )}
+
+        <button
+          onClick={openCreateModal}
+          className="px-5 py-3 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-2xl text-sm shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition-all flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          <span>New Prescription</span>
+        </button>
       </div>
 
-      {success && (
-        <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-xl flex items-center gap-2 text-emerald-300 text-sm">
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
       {error && (
-        <div className="p-4 bg-red-950/40 border border-red-800/60 rounded-xl flex items-center gap-2 text-red-300 text-sm">
-          <ShieldAlert className="w-5 h-5 text-red-500 shrink-0" />
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-2 shadow-sm">
+          <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase bg-slate-950/40">
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Patient</th>
-                <th className="px-6 py-4">Consulting Doctor</th>
-                <th className="px-6 py-4">Fee (INR)</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-violet-500 mx-auto mb-2" />
-                    Loading prescriptions history...
-                  </td>
-                </tr>
-              ) : prescriptions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-500 italic">
-                    No prescription records logged in this clinic context.
-                  </td>
-                </tr>
-              ) : (
-                prescriptions.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/20 text-slate-300">
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-400 text-xs">
-                      {new Date(p.prescriptionDate).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-bold text-white">{p.patientName}</div>
-                      <span className="text-xs text-slate-500">{p.patientPhone}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-semibold">Dr. {p.doctorName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">INR {p.consultationFee.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-                        p.status === 'DRAFT' ? 'bg-amber-950 text-amber-400 border-amber-800/50' :
-                        p.status === 'COMPLETED' ? 'bg-blue-950 text-blue-400 border-blue-800/50' :
-                        'bg-emerald-950 text-emerald-400 border-emerald-800/50'
-                      }`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap space-x-2">
-                      <button
-                        onClick={() => openViewModal(p)}
-                        className="text-xs font-semibold px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-lg transition-all"
-                      >
-                        View Details
-                      </button>
-
-                      {p.status === 'DRAFT' && isDoctor && (
-                        <>
-                          <button
-                            onClick={() => openEditBuilder(p)}
-                            className="p-1.5 bg-slate-950 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg transition-all"
-                            title="Edit Draft"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleComplete(p.id)}
-                            className="text-xs font-semibold px-2 py-1.5 bg-violet-950 text-violet-400 border border-violet-850 hover:bg-violet-900 rounded-lg transition-all"
-                          >
-                            Complete
-                          </button>
-                        </>
-                      )}
-
-                      {p.status === 'COMPLETED' && canBilling && (
-                        <button
-                          onClick={() => handleGenerateInvoice(p.id)}
-                          className="text-xs font-semibold px-3 py-1.5 bg-emerald-950 text-emerald-400 border border-emerald-850 hover:bg-emerald-900 rounded-lg transition-all"
-                        >
-                          Generate Invoice
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {success && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-sm font-semibold flex items-center gap-2 shadow-sm">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <span>{success}</span>
         </div>
+      )}
+
+      {/* Prescriptions Table Card */}
+      <div className="bg-white/90 backdrop-blur-xl border border-emerald-100 rounded-3xl p-6 shadow-xl shadow-emerald-950/5">
+        {loading ? (
+          <div className="p-12 text-center text-emerald-600 font-semibold flex items-center justify-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading Prescriptions...</span>
+          </div>
+        ) : prescriptions.length === 0 ? (
+          <div className="p-12 text-center text-slate-500">
+            <FileText className="w-12 h-12 text-emerald-200 mx-auto mb-3" />
+            <p className="font-bold text-slate-800 text-lg">No prescriptions recorded yet.</p>
+            <p className="text-xs text-slate-500 mt-1">Click New Prescription above to write a digital prescription for a patient.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-emerald-50/60 border-b border-emerald-100 text-slate-600 text-[11px] font-extrabold uppercase tracking-wider">
+                  <th className="p-4 rounded-l-2xl">Date</th>
+                  <th className="p-4">Patient</th>
+                  <th className="p-4">Doctor</th>
+                  <th className="p-4">Consultation Fee</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4 text-right rounded-r-2xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-emerald-100/60 text-sm">
+                {prescriptions.map((p) => {
+                  const isCompleted = p.status === 'COMPLETED';
+                  const isBilled = p.status === 'BILLED';
+                  const isDraft = p.status === 'DRAFT';
+
+                  return (
+                    <tr key={p.id} className="hover:bg-emerald-50/40 transition-colors group">
+                      <td className="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">
+                        {new Date(p.prescriptionDate).toLocaleDateString()}
+                      </td>
+
+                      <td className="p-4 font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-emerald-600" />
+                          <span>{p.patientName}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-4 font-semibold text-slate-700 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Dr. {p.doctorName}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-4 font-black text-emerald-700 whitespace-nowrap">
+                        INR {p.consultationFee.toFixed(2)}
+                      </td>
+
+                      <td className="p-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider border ${
+                          isBilled 
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                            : isCompleted 
+                              ? 'bg-teal-100 text-teal-800 border-teal-300' 
+                              : 'bg-amber-100 text-amber-800 border-amber-300'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isBilled ? 'bg-emerald-600' : isCompleted ? 'bg-teal-600' : 'bg-amber-600'}`}></span>
+                          {p.status}
+                        </span>
+                      </td>
+
+                      <td className="p-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          
+                          <button
+                            onClick={() => openViewModal(p)}
+                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                            <span>Rx Items ({p.items?.length || 0})</span>
+                          </button>
+
+                          {isDraft && (
+                            <button
+                              onClick={() => handleCompletePrescription(p.id)}
+                              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-600/20 transition-all flex items-center gap-1"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Complete</span>
+                            </button>
+                          )}
+
+                          {isCompleted && session?.role !== 'DOCTOR' && (
+                            <button
+                              onClick={() => handleGenerateInvoice(p.id)}
+                              className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1"
+                            >
+                              <Receipt className="w-3.5 h-3.5" />
+                              <span>Generate Invoice</span>
+                            </button>
+                          )}
+
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Builder Modal */}
+      {/* Prescription Form Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative my-8">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto max-h-screen">
+          <div className="bg-white border border-emerald-100 rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl space-y-6 my-8">
             
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-white">
-                {editingPrescription ? 'Edit Prescription Draft' : 'Prescription Builder'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white focus:outline-none">
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
+              <h3 className="text-xl font-black text-slate-900">
+                {editingPrescription ? 'Edit Prescription' : 'Write Clinical e-Prescription'}
+              </h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 lg:grid-cols-5 gap-6 max-h-[70vh] overflow-y-auto">
-              {/* Left Column: Patient & consultation configurations */}
-              <div className="lg:col-span-2 space-y-4">
-                <h3 className="text-xs font-bold text-violet-400 uppercase tracking-wider">
-                  1. Clinical Metadata
-                </h3>
-                
+            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
+              
+              {/* Doctor & Patient Selector */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Select Patient</label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Select Patient</label>
                   <select
-                    value={selectedPatientId}
-                    onChange={(e) => setSelectedPatientId(e.target.value)}
-                    disabled={!!editingPrescription}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all disabled:opacity-50"
-                  >
-                    {patients.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.phone})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Consulting Doctor</label>
-                  <select
-                    value={selectedDoctorId}
-                    onChange={(e) => {
-                      setSelectedDoctorId(e.target.value);
-                      const doc = doctors.find(d => d.id === e.target.value);
-                      if (doc) setConsultationFee(String(doc.consultationFee));
-                    }}
-                    disabled={isDoctor} // locks doctor value if logged in as DOCTOR role
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all disabled:opacity-50"
-                  >
-                    {doctors.map(d => (
-                      <option key={d.id} value={d.id}>Dr. {d.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Consultation Fee (INR)</label>
-                  <input
-                    type="number"
-                    step="0.01"
                     required
-                    value={consultationFee}
-                    onChange={(e) => setConsultationFee(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
-                  />
+                    value={patientId}
+                    onChange={(e) => setPatientId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none"
+                  >
+                    <option value="">-- Choose Patient --</option>
+                    {patients.map(pt => (
+                      <option key={pt.id} value={pt.id}>{pt.name} ({pt.phone}) - [{pt.patientCode}]</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Clinical Notes (Redacted to Reception)</label>
-                  <textarea
-                    rows={4}
-                    placeholder="Diagnosis, Symptoms, Vital parameters..."
-                    value={doctorNotes}
-                    onChange={(e) => setDoctorNotes(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all resize-none text-sm"
-                  />
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Select Consulting Doctor</label>
+                  <select
+                    required
+                    value={doctorId}
+                    onChange={(e) => handleDoctorSelect(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none"
+                  >
+                    <option value="">-- Choose Doctor --</option>
+                    {doctors.map(d => (
+                      <option key={d.id} value={d.id}>Dr. {d.name} ({d.specialization}) - INR {d.consultationFee}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Right Column: Medicine item builder and summary */}
-              <div className="lg:col-span-3 space-y-6">
-                
-                {/* Item adder block */}
-                <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-4">
-                  <h3 className="text-xs font-bold text-violet-400 uppercase tracking-wider">
-                    2. Add Medicine
-                  </h3>
-                  
-                  {/* Medicine Autocomplete */}
-                  <div className="relative">
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Search Drug Catalog</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                      <input
-                        type="text"
-                        placeholder="Type medicine code or name..."
-                        value={medicineQuery}
-                        onChange={(e) => handleMedicineSearch(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                      />
-                    </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Consultation Fee (INR)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="500.00"
+                  value={consultationFee}
+                  onChange={(e) => setConsultationFee(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none"
+                />
+              </div>
 
-                    {/* Dropdown results */}
-                    {medSearchResults.length > 0 && (
-                      <div className="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-800 rounded-xl max-h-48 overflow-y-auto z-20 shadow-2xl divide-y divide-slate-850">
-                        {medSearchResults.map(med => (
-                          <div
-                            key={med.id}
-                            onClick={() => selectMedicine(med)}
-                            className="px-4 py-2.5 text-sm hover:bg-slate-850 cursor-pointer flex justify-between"
-                          >
-                            <span className="font-bold text-slate-200">{med.medicineName}</span>
-                            <span className="text-xs text-slate-500 uppercase">{med.medicineCode} ({med.unitType})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedMedicine && (
-                    <div className="bg-slate-950/90 border border-violet-950 rounded-lg p-2.5 text-xs text-violet-300 flex justify-between items-center">
-                      <span>Selected: <strong>{selectedMedicine.medicineName}</strong> (INR {selectedMedicine.unitPrice.toFixed(2)} + {selectedMedicine.gstPercentage}% GST)</span>
-                      <button onClick={() => setSelectedMedicine(null)} className="text-slate-500 hover:text-white">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Quantity</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value))}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Dosage</label>
-                      <input
-                        type="text"
-                        value={dosage}
-                        onChange={(e) => setDosage(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Frequency</label>
-                      <input
-                        type="text"
-                        value={frequency}
-                        onChange={(e) => setFrequency(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">Duration</label>
-                      <input
-                        type="text"
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">Remarks (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Take with warm water"
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none transition-all"
-                    />
-                  </div>
-
+              {/* Medicine Line Items */}
+              <div className="space-y-3 pt-2">
+                <div className="flex justify-between items-center bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200/80">
+                  <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider">Prescribed Medicines Catalog</span>
                   <button
                     type="button"
-                    onClick={addBuilderItem}
-                    disabled={!selectedMedicine}
-                    className="w-full flex items-center justify-center gap-1 bg-violet-600 hover:bg-violet-500 text-white font-semibold py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:pointer-events-none"
+                    onClick={addItemRow}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm"
                   >
-                    <PlusCircle className="w-4 h-4" />
-                    Add Item
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Medicine</span>
                   </button>
                 </div>
 
-                {/* Items Summary Table */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    3. Prescribed Items Summary
-                  </h3>
-                  <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-slate-500 uppercase font-semibold bg-slate-950/60">
-                          <th className="px-4 py-2.5">Medicine</th>
-                          <th className="px-4 py-2.5">Qty</th>
-                          <th className="px-4 py-2.5">Instructions</th>
-                          <th className="px-4 py-2.5 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-805">
-                        {builderItems.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="px-4 py-6 text-center text-slate-500 italic">
-                              No medicine items added yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          builderItems.map((item, index) => (
-                            <tr key={index} className="text-slate-300">
-                              <td className="px-4 py-2.5 font-bold text-white">{item.medicineName}</td>
-                              <td className="px-4 py-2.5">{item.quantity}</td>
-                              <td className="px-4 py-2.5">
-                                {item.dosage} | {item.frequency} | {item.duration}
-                                {item.remarks && <span className="block text-[10px] text-slate-500">Note: {item.remarks}</span>}
-                              </td>
-                              <td className="px-4 py-2.5 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => removeBuilderItem(index)}
-                                  className="text-red-500 hover:text-red-400"
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                {items.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic text-center py-4">No medicines added yet. Click Add Medicine above.</p>
+                ) : (
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                    {items.map((it, idx) => (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 grid grid-cols-1 md:grid-cols-6 gap-2 text-xs items-center">
+                        <div className="md:col-span-2">
+                          <select
+                            required
+                            value={it.medicineId}
+                            onChange={(e) => updateItemRow(idx, 'medicineId', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold"
+                          >
+                            <option value="">-- Select Drug --</option>
+                            {medicines.map(m => (
+                              <option key={m.id} value={m.id}>{m.medicineName} ({m.unitType}) - INR {m.unitPrice}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Qty"
+                            value={it.quantity}
+                            onChange={(e) => updateItemRow(idx, 'quantity', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-center"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Frequency (1-0-1)"
+                            value={it.frequency}
+                            onChange={(e) => updateItemRow(idx, 'frequency', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Duration (5 days)"
+                            value={it.duration}
+                            onChange={(e) => updateItemRow(idx, 'duration', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => removeItemRow(idx)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
+                )}
               </div>
-            </div>
 
-            <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40 flex justify-between gap-4">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white rounded-xl text-sm font-semibold transition-all"
-              >
-                Cancel
-              </button>
-              <div className="flex gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Clinical Notes & Remarks</label>
+                <textarea
+                  rows={2}
+                  placeholder="Clinical diagnosis, diet instructions..."
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={handleSaveDraft}
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
                   disabled={formLoading}
-                  className="px-4 py-2 bg-slate-950 border border-slate-800 hover:border-slate-700 text-amber-500 font-semibold rounded-xl text-sm transition-all"
+                  className="px-5 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all"
                 >
                   Save as Draft
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleComplete()}
+                  onClick={(e) => handleSubmit(e, true)}
                   disabled={formLoading}
-                  className="px-4 py-2 bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white font-semibold rounded-xl text-sm shadow-lg hover:shadow-violet-500/10 active:scale-[0.98] transition-all"
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-1.5"
                 >
-                  Save & Complete
+                  {formLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Save & Mark Completed</span>
                 </button>
               </div>
-            </div>
 
+            </form>
           </div>
         </div>
       )}
 
-      {/* View Details Modal */}
+      {/* View Prescription Modal */}
       {isViewModalOpen && selectedPrescription && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-slate-950/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative">
-            
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-violet-500" />
-                Prescription Details
-              </h2>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-slate-400 hover:text-white focus:outline-none">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-emerald-100 rounded-3xl max-w-xl w-full p-6 md:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Rx for {selectedPrescription.patientName}</h3>
+                <p className="text-xs text-slate-500 font-semibold">Prescribed by Dr. {selectedPrescription.doctorName}</p>
+              </div>
+              <button 
+                onClick={() => setIsViewModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto text-sm">
-              <div className="grid grid-cols-2 gap-4 border-b border-slate-800 pb-4">
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase">Patient</p>
-                  <p className="font-bold text-white">{selectedPrescription.patientName}</p>
-                  <p className="text-xs text-slate-400">{selectedPrescription.patientPhone}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase">Consulting Doctor</p>
-                  <p className="font-bold text-white">Dr. {selectedPrescription.doctorName}</p>
-                  <p className="text-xs text-slate-450">Fee: INR {selectedPrescription.consultationFee.toFixed(2)}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-slate-500 font-semibold uppercase mb-1">Clinical Notes</p>
-                <div className="p-3 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 italic">
-                  {selectedPrescription.doctorNotes || 'No notes added.'}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs text-slate-500 font-semibold uppercase">Prescribed Medicines</p>
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-850 text-slate-400 uppercase font-semibold bg-slate-950/40">
-                        <th className="px-4 py-2.5">Medicine</th>
-                        <th className="px-4 py-2.5">Qty</th>
-                        <th className="px-4 py-2.5">Instructions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-850">
-                      {selectedPrescription.items.map((item, index) => (
-                        <tr key={index} className="text-slate-300">
-                          <td className="px-4 py-2.5 font-bold text-white">{item.medicineName}</td>
-                          <td className="px-4 py-2.5">{item.quantity}</td>
-                          <td className="px-4 py-2.5">
-                            {item.dosage} | {item.frequency} | {item.duration}
-                            {item.remarks && <span className="block text-[10px] text-slate-500">Note: {item.remarks}</span>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            <div className="bg-emerald-50/40 border border-emerald-100 rounded-2xl p-4 space-y-3">
+              <h4 className="text-xs font-extrabold uppercase text-emerald-800">Prescribed Medicine Items</h4>
+              <ul className="divide-y divide-emerald-100 text-xs text-slate-800">
+                {selectedPrescription.items?.map((it, idx) => (
+                  <li key={idx} className="py-2 flex justify-between items-center font-semibold">
+                    <div>
+                      <span className="font-bold text-slate-900 block">{it.medicineName || 'Medicine'}</span>
+                      <span className="text-[11px] text-slate-500">{it.dosage} • {it.frequency} • {it.duration}</span>
+                    </div>
+                    <span className="bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full">
+                      Qty: {it.quantity}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40 flex justify-end">
+            <div className="flex items-center justify-end pt-2">
               <button
                 onClick={() => setIsViewModalOpen(false)}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm transition-all"
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
               >
-                Close View
+                Close
               </button>
             </div>
-
           </div>
         </div>
       )}

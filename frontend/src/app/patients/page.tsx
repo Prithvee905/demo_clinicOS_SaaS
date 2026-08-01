@@ -13,7 +13,12 @@ import {
   Users, 
   CheckCircle2, 
   ShieldAlert,
-  Loader2
+  Loader2,
+  PhoneCall,
+  User,
+  Calendar,
+  MapPin,
+  HeartPulse
 } from 'lucide-react';
 
 interface Patient {
@@ -49,14 +54,20 @@ export default function PatientsPage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [address, setAddress] = useState('');
   const [bloodGroup, setBloodGroup] = useState('O+');
-  const [formLoading, setFormLoading] = useState(false);
 
-  const fetchPatients = useCallback(async (searchQuery = '', pageNumber = 0) => {
+  const fetchPatients = useCallback(async (currentPage = 0, query = '') => {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiFetch(`/patients?search=${encodeURIComponent(searchQuery)}&page=${pageNumber}&size=10`);
-      if (!res.ok) throw new Error('Failed to load patient records');
+      
+      let url = `/patients?page=${currentPage}&size=10`;
+      if (query.trim()) {
+        url = `/patients/search?query=${encodeURIComponent(query.trim())}&page=${currentPage}&size=10`;
+      }
+
+      const res = await apiFetch(url);
+      if (!res.ok) throw new Error('Failed to load clinic patient records');
+      
       const data = await res.json();
       setPatients(data.content || []);
       setTotalPages(data.totalPages || 0);
@@ -69,13 +80,13 @@ export default function PatientsPage() {
 
   useEffect(() => {
     setSession(getSession());
-    fetchPatients(searchTerm, page);
-  }, [page, fetchPatients]);
+    fetchPatients(0, '');
+  }, [fetchPatients]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setPage(0);
-    fetchPatients(e.target.value, 0);
+    fetchPatients(0, searchTerm);
   };
 
   const openCreateModal = () => {
@@ -93,7 +104,7 @@ export default function PatientsPage() {
     setEditingPatient(patient);
     setName(patient.name);
     setPhone(patient.phone);
-    setGender(patient.gender);
+    setGender(patient.gender || 'Male');
     setDateOfBirth(patient.dateOfBirth || '');
     setAddress(patient.address || '');
     setBloodGroup(patient.bloodGroup || 'O+');
@@ -104,10 +115,17 @@ export default function PatientsPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setFormLoading(true);
+
+    const payload = {
+      name,
+      phone,
+      gender,
+      dateOfBirth: dateOfBirth || null,
+      address,
+      bloodGroup,
+    };
 
     try {
-      const payload = { name, phone, gender, dateOfBirth: dateOfBirth || null, address, bloodGroup };
       let res;
       if (editingPatient) {
         res = await apiFetch(`/patients/${editingPatient.id}`, {
@@ -122,256 +140,266 @@ export default function PatientsPage() {
       }
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Operation failed');
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Error occurred while saving patient.');
-      }
-
-      setSuccess(`Patient ${editingPatient ? 'updated' : 'registered'} successfully!`);
+      setSuccess(editingPatient ? 'Patient record updated successfully!' : `Patient ${data.name} registered! Code: ${data.patientCode}`);
       setIsModalOpen(false);
-      fetchPatients(searchTerm, page);
-      
+      fetchPatients(page, searchTerm);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setFormLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to soft-delete this patient record?')) return;
-    setError(null);
-    setSuccess(null);
-
+    if (!confirm('Are you sure you want to delete this patient record?')) return;
     try {
       const res = await apiFetch(`/patients/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Failed to delete patient');
-      }
-
-      setSuccess('Patient record soft-deleted successfully!');
-      fetchPatients(searchTerm, page);
+      if (!res.ok) throw new Error('Failed to delete patient');
+      setSuccess('Patient deleted successfully!');
+      fetchPatients(page, searchTerm);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  const canModify = session?.role === 'ADMIN' || session?.role === 'RECEPTIONIST';
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       
-      {/* Title block */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Header Banner */}
+      <div className="bg-white/90 backdrop-blur-xl border border-emerald-100 rounded-3xl p-6 md:p-8 shadow-xl shadow-emerald-950/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+        <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-100/60 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
         <div>
-          <h1 className="text-3xl font-extrabold text-white flex items-center gap-2">
-            <Users className="w-8 h-8 text-violet-500" />
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-emerald-100/80 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 uppercase">
+              <Users className="w-3.5 h-3.5 text-emerald-600" />
+              PATIENT MANAGEMENT DIRECTORY
+            </span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
             Patient Registry
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Manage and register patient charts for your clinic</p>
+          <p className="text-slate-600 text-sm font-medium mt-1">
+            Register and manage patient profiles, demographics, contact numbers, and medical history.
+          </p>
         </div>
-        {canModify && (
+
+        {session?.role !== 'DOCTOR' && (
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-violet-500/10 active:scale-[0.98] transition-all"
+            className="px-5 py-3 bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-2xl text-sm shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 transition-all flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
-            <span>Register Patient</span>
+            <Plus className="w-5 h-5" />
+            <span>Register New Patient</span>
           </button>
         )}
       </div>
 
-      {/* Success and Error Alerts */}
-      {success && (
-        <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-xl flex items-center gap-2 text-emerald-300 text-sm">
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
       {error && (
-        <div className="p-4 bg-red-950/40 border border-red-800/60 rounded-xl flex items-center gap-2 text-red-300 text-sm">
-          <ShieldAlert className="w-5 h-5 text-red-500 shrink-0" />
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-2 shadow-sm">
+          <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-500" />
-        <input
-          type="text"
-          placeholder="Search patients by name or phone..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="w-full bg-slate-900 border border-slate-800 focus:border-violet-500 rounded-xl pl-11 pr-4 py-3 text-slate-200 focus:outline-none transition-all placeholder:text-slate-500"
-        />
-      </div>
+      {success && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-sm font-semibold flex items-center gap-2 shadow-sm">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
 
-      {/* Patients Table */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase bg-slate-950/40">
-                <th className="px-6 py-4">Code</th>
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Phone</th>
-                <th className="px-6 py-4">Gender</th>
-                <th className="px-6 py-4">Age / DOB</th>
-                <th className="px-6 py-4">Blood</th>
-                <th className="px-6 py-4">Address</th>
-                {canModify && <th className="px-6 py-4 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {loading ? (
-                <tr>
-                  <td colSpan={canModify ? 8 : 7} className="px-6 py-10 text-center text-slate-500">
-                    <Loader2 className="w-6 h-6 animate-spin text-violet-500 mx-auto mb-2" />
-                    Loading patient records...
-                  </td>
+      {/* Search Bar & Table Card */}
+      <div className="bg-white/90 backdrop-blur-xl border border-emerald-100 rounded-3xl p-6 shadow-xl shadow-emerald-950/5 space-y-6">
+        
+        {/* Search Bar */}
+        <form onSubmit={handleSearchSubmit} className="flex gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search patients by name, phone number, or patient code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl pl-10 pr-4 py-3 text-sm text-slate-800 font-semibold focus:outline-none transition-all"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-4" />
+          </div>
+          <button
+            type="submit"
+            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-2xl shadow-md shadow-emerald-600/20 transition-all"
+          >
+            Search
+          </button>
+        </form>
+
+        {/* Patients Table */}
+        {loading ? (
+          <div className="p-12 text-center text-emerald-600 font-semibold flex items-center justify-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading Patients...</span>
+          </div>
+        ) : patients.length === 0 ? (
+          <div className="p-12 text-center text-slate-500">
+            <Users className="w-12 h-12 text-emerald-200 mx-auto mb-3" />
+            <p className="font-bold text-slate-800 text-lg">No patient records found.</p>
+            <p className="text-xs text-slate-500 mt-1">Click Register New Patient above to add a patient to the clinic directory.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-emerald-50/60 border-b border-emerald-100 text-slate-600 text-[11px] font-extrabold uppercase tracking-wider">
+                  <th className="p-4 rounded-l-2xl">Code</th>
+                  <th className="p-4">Patient Name</th>
+                  <th className="p-4">Contact Phone</th>
+                  <th className="p-4">Gender</th>
+                  <th className="p-4">Blood Group</th>
+                  <th className="p-4">Date Registered</th>
+                  <th className="p-4 text-right rounded-r-2xl">Actions</th>
                 </tr>
-              ) : patients.length === 0 ? (
-                <tr>
-                  <td colSpan={canModify ? 8 : 7} className="px-6 py-10 text-center text-slate-500 italic">
-                    No patients registered yet.
-                  </td>
-                </tr>
-              ) : (
-                patients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-slate-800/20 text-slate-300">
-                    <td className="px-6 py-4 font-bold text-violet-400 whitespace-nowrap">{patient.patientCode}</td>
-                    <td className="px-6 py-4 font-semibold text-white whitespace-nowrap">{patient.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{patient.phone}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{patient.gender}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {patient.dateOfBirth ? (
-                        <>
-                          {patient.dateOfBirth}
-                          <span className="text-slate-500 text-xs ml-1">
-                            ({new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear()} yrs)
-                          </span>
-                        </>
-                      ) : (
-                        'N/A'
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="bg-slate-950 text-slate-300 px-2 py-0.5 rounded text-xs font-bold border border-slate-800">
-                        {patient.bloodGroup || 'N/A'}
+              </thead>
+              <tbody className="divide-y divide-emerald-100/60 text-sm">
+                {patients.map((pt) => (
+                  <tr key={pt.id} className="hover:bg-emerald-50/40 transition-colors group">
+                    <td className="p-4 font-black text-emerald-700 whitespace-nowrap">
+                      <span className="bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-full text-xs">
+                        {pt.patientCode}
                       </span>
                     </td>
-                    <td className="px-6 py-4 truncate max-w-[200px]" title={patient.address}>{patient.address || 'N/A'}</td>
-                    {canModify && (
-                      <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+
+                    <td className="p-4 font-bold text-slate-900 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" />
+                        <span>{pt.name}</span>
+                      </div>
+                    </td>
+
+                    <td className="p-4 text-slate-700 font-semibold whitespace-nowrap">
+                      <span className="flex items-center gap-1.5 text-xs">
+                        <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                        {pt.phone}
+                      </span>
+                    </td>
+
+                    <td className="p-4 text-slate-600 font-semibold whitespace-nowrap text-xs">
+                      {pt.gender}
+                    </td>
+
+                    <td className="p-4 whitespace-nowrap">
+                      <span className="bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 w-fit">
+                        <HeartPulse className="w-3 h-3 text-rose-500" />
+                        {pt.bloodGroup || 'N/A'}
+                      </span>
+                    </td>
+
+                    <td className="p-4 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        {new Date(pt.createdAt).toLocaleDateString()}
+                      </span>
+                    </td>
+
+                    <td className="p-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => openEditModal(patient)}
-                          className="p-1.5 bg-slate-950 text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg transition-all"
-                          title="Edit Profile"
+                          onClick={() => openEditModal(pt)}
+                          className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition-all"
+                          title="Edit Patient"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDelete(patient.id)}
-                          className="p-1.5 bg-slate-950 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-950 rounded-lg transition-all"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    )}
+                        {session?.role === 'ADMIN' && (
+                          <button
+                            onClick={() => handleDelete(pt.id)}
+                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl transition-all"
+                            title="Delete Patient"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Pagination controls */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
+          <div className="flex justify-between items-center pt-4 border-t border-emerald-100">
+            <button
+              disabled={page === 0}
+              onClick={() => { setPage(page - 1); fetchPatients(page - 1, searchTerm); }}
+              className="px-4 py-2 bg-slate-100 hover:bg-emerald-100 text-slate-700 rounded-xl text-xs font-bold disabled:opacity-40 flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" /> Previous
+            </button>
+            <span className="text-xs font-bold text-slate-600">
               Page {page + 1} of {totalPages}
             </span>
-            <div className="flex gap-2">
-              <button
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-                className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage(page + 1)}
-                className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-all"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              disabled={page + 1 >= totalPages}
+              onClick={() => { setPage(page + 1); fetchPatients(page + 1, searchTerm); }}
+              className="px-4 py-2 bg-slate-100 hover:bg-emerald-100 text-slate-700 rounded-xl text-xs font-bold disabled:opacity-40 flex items-center gap-1"
+            >
+              Next <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
 
-      {/* Registration/Edit Slide-over Drawer / Modal */}
+      {/* Register/Edit Patient Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-slate-950/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden relative">
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-white">
-                {editingPatient ? 'Edit Patient Profile' : 'Register New Patient'}
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white focus:outline-none">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-emerald-100 rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-6">
+            
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
+              <h3 className="text-xl font-black text-slate-900">
+                {editingPatient ? 'Edit Patient Details' : 'Register New Patient'}
+              </h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {error && (
-                <div className="p-4 bg-red-950/40 border border-red-800/60 rounded-xl flex items-center gap-2 text-red-300 text-sm">
-                  <ShieldAlert className="w-5 h-5 text-red-500 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Full Name
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Full Patient Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. Sarah Jenkins"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Phone Number
-                  </label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
                     required
-                    placeholder="9876543210"
+                    placeholder="+91 98765 43210"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Gender
-                  </label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Gender</label>
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -380,60 +408,67 @@ export default function PatientsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Date of Birth
-                  </label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Date of Birth</label>
                   <input
                     type="date"
                     value={dateOfBirth}
-                    max={new Date().toISOString().split('T')[0]}
-                    min="1900-01-01"
                     onChange={(e) => setDateOfBirth(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Blood Group
-                  </label>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Blood Group</label>
                   <select
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                   >
-                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                      <option key={bg} value={bg}>{bg}</option>
-                    ))}
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Residential Address
-                </label>
-                <input
-                  type="text"
-                  placeholder="Street, City, State, Pin Code"
+                <label className="block text-xs font-bold text-slate-600 mb-1">Residential Address</label>
+                <textarea
+                  rows={2}
+                  placeholder="Street address, City..."
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-sm text-slate-800 font-semibold focus:outline-none"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={formLoading}
-                className="w-full bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-violet-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none mt-6"
-              >
-                {formLoading ? 'Saving record...' : (editingPatient ? 'Update Profile' : 'Register Chart')}
-              </button>
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-600/25 transition-all"
+                >
+                  {editingPatient ? 'Update Patient' : 'Save Patient Record'}
+                </button>
+              </div>
             </form>
+
           </div>
         </div>
       )}
+
     </div>
   );
 }
