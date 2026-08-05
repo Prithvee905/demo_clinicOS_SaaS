@@ -92,21 +92,26 @@ export default function LoginPage() {
         body: JSON.stringify({
           clinicName,
           clinicCode: clinicCode || undefined,
-          ownerName,
-          clinicPhone,
-          clinicEmail,
-          clinicAddress,
+          ownerName: ownerName || adminName || clinicName,
+          clinicPhone: clinicPhone || adminPhone || '9999999999',
+          clinicEmail: clinicEmail || adminEmail,
+          clinicAddress: clinicAddress || clinicName || 'Main Clinic Address',
           adminEmail,
-          adminName,
-          adminPhone,
-          adminPassword,
+          adminName: adminName || ownerName || 'Clinic Admin',
+          adminPhone: adminPhone || clinicPhone || '9999999999',
+          password: adminPassword,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Clinic registration failed.');
+        let errStr = data.message || 'Clinic registration failed.';
+        if (data.details && typeof data.details === 'object') {
+          const detailMsgs = Object.entries(data.details).map(([k, v]) => `${k}: ${v}`).join(' | ');
+          if (detailMsgs) errStr += ` (${detailMsgs})`;
+        }
+        throw new Error(errStr);
       }
 
       setSuccess(`Clinic registered successfully! Code: ${data.clinicCode}. You can now login.`);

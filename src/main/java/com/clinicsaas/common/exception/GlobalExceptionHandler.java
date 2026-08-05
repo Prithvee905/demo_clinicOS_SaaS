@@ -40,9 +40,12 @@ public class GlobalExceptionHandler {
         });
         log.warn("Validation failed for request: {}", errors);
 
+        StringBuilder sb = new StringBuilder("Validation failed: ");
+        errors.forEach((field, msg) -> sb.append(field).append(" (").append(msg).append("); "));
+
         Map<String, Object> body = new HashMap<>();
         body.put("success", false);
-        body.put("message", "Validation failed for request input.");
+        body.put("message", sb.toString());
         body.put("errorCode", "VALIDATION_ERROR");
         body.put("details", errors);
 
